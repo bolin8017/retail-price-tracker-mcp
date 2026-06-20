@@ -26,3 +26,7 @@ Use the retail price tracker MCP tools to run check_all. If there are price drop
 - “Track this UNIQLO product and notify me below NT$390.”
 - “List my tracked retail products.”
 - “Show the price history for product 3.”
+- “Find candidate UNIQLO products for this OCR text: AIRism 棉質寬版圓領T恤.”
+
+Use `resolve_product` before `add_product` when the user provides only a product
+name, OCR result, or partial product code instead of a canonical URL.

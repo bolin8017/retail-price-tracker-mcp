@@ -4,6 +4,7 @@ Adapters isolate store-specific logic behind a small interface:
 
 - `supports(url) -> bool`
 - `check(product) -> CheckResult`
+- `resolve(query, limit=5) -> list[dict]`
 
 ## Current adapters
 
@@ -23,7 +24,8 @@ POST https://d.uniqlo.com/tw/p/search/products/by-description
 It extracts a query from a UNIQLO URL, such as `E475355-000`, `u0000000053128`,
 `productCode=...`, or `pid=...`, then matches the returned `productList`.
 
-The adapter records:
+The adapter supports both checking known product URLs and resolving candidates
+from names/OCR text/product codes. It records:
 
 - `minPrice` as the current tracked price
 - `originPrice` in raw metadata

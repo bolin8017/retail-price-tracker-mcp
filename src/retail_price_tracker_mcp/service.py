@@ -4,7 +4,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from .adapters import choose_adapter, get_adapter
+from .adapters import ADAPTERS, choose_adapter, get_adapter
 from .db import TrackerDB
 from .models import Product
 
@@ -85,6 +85,16 @@ class TrackerService:
     def remove_product(self, product_id: int) -> dict[str, Any]:
         removed = self.db.deactivate_product(product_id)
         return {"product_id": product_id, "removed": removed}
+
+    def resolve_product(self, query: str, limit: int = 5) -> dict[str, Any]:
+        candidates: list[dict[str, Any]] = []
+        errors: list[dict[str, str]] = []
+        for adapter in ADAPTERS:
+            try:
+                candidates.extend(adapter.resolve(query, limit=limit))
+            except Exception as exc:  # noqa: BLE001 - expose adapter lookup failures to callers
+                errors.append({"adapter": adapter.name, "error": str(exc)})
+        return {"query": query, "candidates": candidates[:limit], "errors": errors}
 
     @staticmethod
     def _product_to_dict(product: Product) -> dict[str, Any]:

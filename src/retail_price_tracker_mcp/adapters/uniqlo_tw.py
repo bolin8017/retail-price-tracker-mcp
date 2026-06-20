@@ -93,9 +93,17 @@ class UniqloTwAdapter:
 
     def _fetch_product_by_code(self, code: str) -> dict[str, Any] | None:
         query = _search_query_for_code(code)
+        products = self._search_products(query, limit=20)
+        return _best_match(products, code)
+
+    def resolve(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        products = self._search_products(query, limit=limit)
+        return [_candidate_from_product(product) for product in products[:limit]]
+
+    def _search_products(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         response = httpx.post(
             UNIQLO_TW_SEARCH_URL,
-            json={"description": query, "page": 1, "pageSize": 20},
+            json={"description": query, "page": 1, "pageSize": limit},
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json",
@@ -107,8 +115,7 @@ class UniqloTwAdapter:
         )
         response.raise_for_status()
         payload = response.json()
-        products = _extract_products(payload)
-        return _best_match(products, code)
+        return _extract_products(payload)
 
     def _unsupported(
         self,
@@ -193,3 +200,23 @@ def _sale_label(product: dict[str, Any]) -> str | None:
 def _clean_product_name(product: dict[str, Any]) -> str | None:
     name = product.get("shortName") or product.get("name") or product.get("productName")
     return str(name) if name else None
+
+
+def _candidate_from_product(product: dict[str, Any]) -> dict[str, Any]:
+    product_code = str(product.get("productCode") or "")
+    return {
+        "adapter": "uniqlo_tw",
+        "product_code": product_code,
+        "name": _clean_product_name(product),
+        "url": f"https://www.uniqlo.com/tw/zh_TW/product-detail.html?productCode={product_code}",
+        "current_price": _coerce_int(product.get("minPrice")),
+        "origin_price": _coerce_int(product.get("originPrice")),
+        "currency": "TWD",
+        "sale_label": _sale_label(product),
+        "stock_status": str(product.get("stock") or "unknown"),
+        "raw": {
+            "price_color": product.get("priceColor"),
+            "pub_suffix": product.get("pubSuffix"),
+            "default_color": product.get("defaultColor"),
+        },
+    }

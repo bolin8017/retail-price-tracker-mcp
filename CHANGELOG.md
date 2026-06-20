@@ -8,3 +8,5 @@
 - Hermes skill and documentation.
 - UNIQLO Taiwan search-based price fetcher for current min price, origin price,
   sale hints, and stock flag.
+- `resolve_product` MCP tool and CLI command for candidate lookup from names,
+  OCR text, or product codes.

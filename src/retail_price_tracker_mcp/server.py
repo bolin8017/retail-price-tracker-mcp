@@ -54,6 +54,12 @@ def remove_product(product_id: int) -> dict[str, Any]:
     return _service.remove_product(product_id)
 
 
+@mcp.tool()
+def resolve_product(query: str, limit: int = 5) -> dict[str, Any]:
+    """Search store adapters for product candidates matching a query."""
+    return _service.resolve_product(query, limit)
+
+
 def main() -> None:
     mcp.run()
 
