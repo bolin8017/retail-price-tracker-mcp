@@ -61,6 +61,7 @@ Use the retail price tracker MCP tools to run check_all. If there are price drop
 
 ## Pitfalls
 
-- The initial `uniqlo_tw` adapter does not yet claim reliable live price support. Do not invent prices.
+- The `uniqlo_tw` adapter uses UNIQLO Taiwan's search endpoint for current prices.
+  If it returns no match or errors, do not invent prices; surface the explicit event.
 - If the MCP tools are missing, verify `mcp_servers` config and restart Hermes.
 - Use local SQLite paths under `Documents/Hermes/` for user-owned tracker data.
