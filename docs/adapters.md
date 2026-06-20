@@ -10,7 +10,29 @@ Adapters isolate store-specific logic behind a small interface:
 | Adapter | Status | Notes |
 |---|---|---|
 | `generic_static` | Working | Test/demo adapter for `static://` URLs. |
-| `uniqlo_tw` | Placeholder | Parses UNIQLO Taiwan product URLs but does not yet perform reliable live price fetching. |
+| `uniqlo_tw` | Working search-based fetcher | Parses UNIQLO Taiwan product URLs and uses the public search API to resolve current min price, origin price, sale label, and stock flag. |
+
+## UNIQLO Taiwan notes
+
+The `uniqlo_tw` adapter currently uses:
+
+```text
+POST https://d.uniqlo.com/tw/p/search/products/by-description
+```
+
+It extracts a query from a UNIQLO URL, such as `E475355-000`, `u0000000053128`,
+`productCode=...`, or `pid=...`, then matches the returned `productList`.
+
+The adapter records:
+
+- `minPrice` as the current tracked price
+- `originPrice` in raw metadata
+- `priceColor` / product-name hints as sale labels
+- `stock` as the stock status flag
+
+If the search API does not return a matching product or the request fails, the
+adapter returns an explicit `unsupported_live_fetch` event instead of inventing a
+price.
 
 ## Adding a store
 

@@ -13,6 +13,11 @@ The server is intentionally local-first. It returns structured events and leaves
 
 Adapters return observations. The service compares observations against stored state and target prices to create events such as `price_drop`, `below_target`, `sale_label`, or `unsupported_live_fetch`.
 
+The first live adapter is `uniqlo_tw`, which uses UNIQLO Taiwan's search endpoint
+as a product lookup source. This is intentionally implemented as a conservative
+fetcher: no match or network failure produces an explicit event/error rather than
+fabricated price data.
+
 ## Safety
 
 Adapters must never invent prices. If a live price cannot be verified, return `current_price: null` with an explicit event/error.

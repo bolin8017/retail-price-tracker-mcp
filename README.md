@@ -14,7 +14,7 @@ The first adapter target is **UNIQLO Taiwan**. The project is intentionally adap
 - MCP tools for adding, listing, checking, and removing tracked products.
 - SQLite persistence for products, price history, and detected events.
 - Store adapter architecture.
-- UNIQLO Taiwan adapter placeholder with URL parsing and safe failure modes.
+- UNIQLO Taiwan adapter with search-based current price lookup and safe failure modes.
 - Generic static adapter for tests and local demonstrations.
 - Hermes skill package with install/config/cron guidance.
 - Standard open-source project files: CI, issue templates, PR template, contributing guide, security policy, code of conduct.
@@ -95,7 +95,7 @@ Use the retail price tracker MCP tools to run check_all. If there are price drop
 
 ## Roadmap
 
-- Reliable UNIQLO Taiwan live price fetcher once a stable API/DOM contract is identified.
+- Harden UNIQLO Taiwan live price fetching with more URL formats and stock detail support.
 - Size/color stock tracking.
 - `resolve_product` search/OCR-assisted flow.
 - changedetection.io backend integration.
