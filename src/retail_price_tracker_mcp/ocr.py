@@ -57,20 +57,23 @@ class PaddleOCRProvider:
 
     def extract_text(self, image_path: str | Path) -> OCRResult:
         engine = self._get_engine()
-        raw_result = engine.ocr(str(image_path), cls=True)
+        raw_result = engine.predict(str(image_path))
         lines = _lines_from_paddle_result(raw_result)
         return OCRResult(provider=self.name, text_lines=lines, raw={"engine": self.name})
 
     def _get_engine(self) -> Any:
         if self._engine is None:
             try:
-                from paddleocr import PaddleOCR  # type: ignore[import-not-found]
+                from paddleocr import PaddleOCR
             except ImportError as exc:  # pragma: no cover - optional dependency path
                 raise RuntimeError(
                     "PaddleOCR is not installed. Install OCR extras, "
                     "e.g. `uv pip install -e '.[ocr]'`."
                 ) from exc
-            self._engine = PaddleOCR(use_angle_cls=True, lang=self.lang)
+            # PaddleOCR 3.x. oneDNN/MKLDNN is disabled because its PIR runtime
+            # path raises NotImplementedError on the PP-OCRv6 models on some
+            # CPUs; the default CPU backend is slower but works everywhere.
+            self._engine = PaddleOCR(lang=self.lang, enable_mkldnn=False)
         return self._engine
 
 
@@ -109,24 +112,13 @@ def query_from_ocr(lines: list[str]) -> str:
 
 
 def _lines_from_paddle_result(raw_result: Any) -> list[str]:
+    # PaddleOCR 3.x predict() returns a list of dict-like OCRResult objects,
+    # each exposing the recognized strings under "rec_texts".
     lines: list[str] = []
-    if not raw_result:
-        return lines
-    pages = raw_result if isinstance(raw_result, list) else [raw_result]
-    for page in pages:
-        if not page:
-            continue
-        for item in page:
-            text = _extract_text_from_paddle_item(item)
-            if text:
-                lines.append(text)
+    for page in raw_result or []:
+        texts = page.get("rec_texts") if hasattr(page, "get") else None
+        for text in texts or []:
+            cleaned = str(text).strip()
+            if cleaned:
+                lines.append(cleaned)
     return lines
-
-
-def _extract_text_from_paddle_item(item: Any) -> str | None:
-    # Common PaddleOCR shape: [box, (text, confidence)]
-    try:
-        text_candidate = item[1][0]
-    except (TypeError, IndexError, KeyError):
-        return None
-    return str(text_candidate).strip() if text_candidate else None

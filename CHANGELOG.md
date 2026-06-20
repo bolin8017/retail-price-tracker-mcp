@@ -25,3 +25,7 @@
 - Install docs now run the server via `uvx --from git+https://...` (or a local
   clone) because the package is not published to PyPI; the previous
   `uvx retail-price-tracker-mcp` examples did not resolve.
+- OCR now actually runs: the `ocr` extra also installs the `paddlepaddle`
+  runtime, and the PaddleOCR provider was updated to the 3.x API (`predict()` +
+  `rec_texts`) with oneDNN disabled to avoid a PP-OCRv6 inference crash on some
+  CPUs.
