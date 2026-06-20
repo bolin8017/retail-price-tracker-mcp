@@ -44,6 +44,19 @@ def test_text_hints_from_ocr_lines_discards_price_and_sizes():
     assert text_hints_from_ocr(lines) == ["AIRism Cotton Oversized Crew Neck T-Shirt"]
 
 
+def test_text_hints_drops_description_sentences():
+    # A real product sign carries marketing copy below the name. Sentence-like
+    # lines must be dropped so the search query stays just the product name.
+    lines = [
+        "棉質舒適九分褲",
+        "Stretch Easy Ankle Pants",
+        "具備彈性的棉質布料，舒適穿著感受。",
+        "Stretch cotton fabric for all-day comfort and ease of movement.",
+        "商品款式、顏色數量以實際店舖為準。",
+    ]
+    assert text_hints_from_ocr(lines) == ["棉質舒適九分褲", "Stretch Easy Ankle Pants"]
+
+
 def test_resolve_product_from_image_uses_injected_ocr_provider(monkeypatch, tmp_path):
     image = tmp_path / "label.jpg"
     image.write_bytes(b"fake image bytes")

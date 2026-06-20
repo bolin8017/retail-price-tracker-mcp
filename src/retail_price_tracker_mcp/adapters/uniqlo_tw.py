@@ -202,13 +202,34 @@ def _clean_product_name(product: dict[str, Any]) -> str | None:
     return str(name) if name else None
 
 
+def _style_code(product: dict[str, Any]) -> str | None:
+    # The 6-digit style code is what the description-search API can actually find;
+    # the internal `productCode` (u + 13 digits) cannot be looked up by search.
+    for key in ("code", "masterSpuCode"):
+        match = UNIQLO_NUMERIC_CODE_RE.search(str(product.get(key) or ""))
+        if match:
+            return match.group(1)
+    name = str(product.get("productName") or product.get("name") or "")
+    match = UNIQLO_NUMERIC_CODE_RE.search(name)
+    return match.group(1) if match else None
+
+
+def _candidate_url(product: dict[str, Any], product_code: str) -> str:
+    # Prefer a URL whose code is searchable, so check_product can re-fetch it.
+    style_code = _style_code(product)
+    if style_code:
+        pub_suffix = str(product.get("pubSuffix") or "000")
+        return f"https://www.uniqlo.com/tw/zh_TW/products/E{style_code}-{pub_suffix}"
+    return f"https://www.uniqlo.com/tw/zh_TW/product-detail.html?productCode={product_code}"
+
+
 def _candidate_from_product(product: dict[str, Any]) -> dict[str, Any]:
     product_code = str(product.get("productCode") or "")
     return {
         "adapter": "uniqlo_tw",
         "product_code": product_code,
         "name": _clean_product_name(product),
-        "url": f"https://www.uniqlo.com/tw/zh_TW/product-detail.html?productCode={product_code}",
+        "url": _candidate_url(product, product_code),
         "current_price": _coerce_int(product.get("minPrice")),
         "origin_price": _coerce_int(product.get("originPrice")),
         "currency": "TWD",
