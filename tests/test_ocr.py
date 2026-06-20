@@ -83,3 +83,12 @@ def test_resolve_product_from_image_rejects_missing_file(tmp_path):
         assert str(missing) in str(exc)
     else:
         raise AssertionError("expected FileNotFoundError")
+
+
+def test_lines_from_paddle_result_parses_v3_rec_texts():
+    # PaddleOCR 3.x predict() returns dict-like OCRResult objects whose
+    # recognized strings live under "rec_texts".
+    from retail_price_tracker_mcp.ocr import _lines_from_paddle_result
+
+    raw = [{"rec_texts": ["AIRism Cotton", "NT$590", "  "], "rec_scores": [0.99, 0.98, 0.1]}]
+    assert _lines_from_paddle_result(raw) == ["AIRism Cotton", "NT$590"]

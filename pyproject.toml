@@ -33,6 +33,9 @@ dev = [
 ]
 ocr = [
   "paddleocr>=3.0",
+  # PaddleOCR does not pull a runtime engine; the CPU build is required to run
+  # inference. Override with a GPU build (paddlepaddle-gpu) out of band if needed.
+  "paddlepaddle>=3.0",
 ]
 
 [project.urls]
@@ -58,6 +61,12 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.11"
 strict = true
 packages = ["retail_price_tracker_mcp"]
+
+# PaddleOCR is an optional, untyped dependency. Ignore it whether or not the
+# `ocr` extra is installed, so type-checking is the same in CI and locally.
+[[tool.mypy.overrides]]
+module = "paddleocr.*"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
