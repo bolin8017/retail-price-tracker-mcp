@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from retail_price_tracker_mcp.models import CheckResult, Product
 
 
@@ -34,3 +36,6 @@ class GenericStaticAdapter:
             events=events,
             raw={"source": "generic_static"},
         )
+
+    def resolve(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        return []

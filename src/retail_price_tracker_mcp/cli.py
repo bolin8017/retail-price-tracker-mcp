@@ -19,6 +19,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("list")
     check = sub.add_parser("check")
     check.add_argument("product_id", type=int)
+    resolve = sub.add_parser("resolve")
+    resolve.add_argument("query")
+    resolve.add_argument("--limit", type=int, default=5)
     return parser
 
 
@@ -31,6 +34,8 @@ def main() -> None:
         data = service.list_products()
     elif args.command == "check":
         data = service.check_product(args.product_id)
+    elif args.command == "resolve":
+        data = service.resolve_product(args.query, args.limit)
     else:  # pragma: no cover
         raise SystemExit(2)
     print(json.dumps(data, ensure_ascii=False, indent=2))

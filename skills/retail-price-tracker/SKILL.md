@@ -49,9 +49,12 @@ Restart Hermes after editing config.
 ## Common workflow
 
 1. If the user provides a product URL, call `mcp_retail_price_tracker_add_product`.
-2. If they specify a target price, pass `target_price` as an integer in local currency.
-3. For scheduled checks, create a Hermes cron job that calls `check_all`.
-4. Report only meaningful events: price drop, below target, sale, restock, or adapter errors.
+2. If the user provides only a product name, OCR result, or partial code, call
+   `mcp_retail_price_tracker_resolve_product` first and ask them to choose from
+   the candidates unless one match is clearly unambiguous.
+3. If they specify a target price, pass `target_price` as an integer in local currency.
+4. For scheduled checks, create a Hermes cron job that calls `check_all`.
+5. Report only meaningful events: price drop, below target, sale, restock, or adapter errors.
 
 ## Cron prompt template
 

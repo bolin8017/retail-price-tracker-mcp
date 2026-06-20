@@ -29,6 +29,7 @@ The first adapter target is **UNIQLO Taiwan**. The project is intentionally adap
 | `check_all` | Check all active products; useful for cron jobs. |
 | `price_history` | Read historical prices for a product. |
 | `remove_product` | Deactivate tracking for a product. |
+| `resolve_product` | Search adapters for candidate products from a name, OCR text, or product code. |
 
 ## Quick start for development
 
@@ -52,6 +53,7 @@ Use the small CLI helper for smoke tests:
 ```bash
 uv run retail-price-tracker add 'https://www.uniqlo.com/tw/zh_TW/products/E123456-000' --name 'Demo shirt' --target-price 390
 uv run retail-price-tracker list
+uv run retail-price-tracker resolve 'AIRism 棉質寬版圓領T恤' --limit 3
 ```
 
 ## Hermes configuration
@@ -75,6 +77,7 @@ After restarting Hermes, tools will be available with names like:
 mcp_retail_price_tracker_add_product
 mcp_retail_price_tracker_check_all
 mcp_retail_price_tracker_price_history
+mcp_retail_price_tracker_resolve_product
 ```
 
 See [`docs/hermes.md`](docs/hermes.md) and [`skills/retail-price-tracker/SKILL.md`](skills/retail-price-tracker/SKILL.md) for a full Hermes workflow.

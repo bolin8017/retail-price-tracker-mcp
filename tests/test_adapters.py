@@ -93,3 +93,52 @@ def test_uniqlo_tw_does_not_fabricate_price_when_no_match(monkeypatch):
     result = adapter.check(product)
     assert result.current_price is None
     assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
+def test_uniqlo_tw_resolves_product_candidates(monkeypatch):
+    def fake_post(*args: Any, **kwargs: Any) -> FakeResponse:
+        assert kwargs["json"]["description"] == "AIRism"
+        assert kwargs["json"]["pageSize"] == 5
+        return FakeResponse(
+            {
+                "success": True,
+                "resp": [
+                    {
+                        "productList": [
+                            {
+                                "productCode": "u0000000053128",
+                                "productName": "AIRism棉質寬版圓領T恤 475355",
+                                "shortName": "AIRism棉質寬版圓領T恤",
+                                "minPrice": 590,
+                                "originPrice": 590,
+                                "priceColor": "black",
+                                "stock": "Y",
+                                "pubSuffix": "000",
+                                "defaultColor": "COL07",
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    candidates = UniqloTwAdapter().resolve("AIRism", limit=5)
+    assert candidates == [
+        {
+            "adapter": "uniqlo_tw",
+            "product_code": "u0000000053128",
+            "name": "AIRism棉質寬版圓領T恤",
+            "url": "https://www.uniqlo.com/tw/zh_TW/product-detail.html?productCode=u0000000053128",
+            "current_price": 590,
+            "origin_price": 590,
+            "currency": "TWD",
+            "sale_label": None,
+            "stock_status": "Y",
+            "raw": {
+                "price_color": "black",
+                "pub_suffix": "000",
+                "default_color": "COL07",
+            },
+        }
+    ]
