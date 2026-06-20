@@ -27,6 +27,12 @@ Use the retail price tracker MCP tools to run check_all. If there are price drop
 - “List my tracked retail products.”
 - “Show the price history for product 3.”
 - “Find candidate UNIQLO products for this OCR text: AIRism 棉質寬版圓領T恤.”
+- “Here is a photo of a price tag — find the matching UNIQLO product.”
 
 Use `resolve_product` before `add_product` when the user provides only a product
 name, OCR result, or partial product code instead of a canonical URL.
+
+When the user supplies an image of a price label, use `resolve_product_from_image`
+with a local image path. OCR runs locally and is an optional extra (PaddleOCR); if
+it is not installed the tool returns a clear install error. Always confirm an
+ambiguous candidate with the user before calling `add_product`.

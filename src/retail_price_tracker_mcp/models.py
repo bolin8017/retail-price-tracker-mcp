@@ -9,6 +9,14 @@ def utc_now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
+IN_STOCK_VALUES = frozenset({"Y", "YES", "IN_STOCK", "TRUE", "1"})
+
+
+def is_in_stock(status: str | None) -> bool:
+    """Return True when an adapter's stock flag means the item is purchasable."""
+    return status is not None and status.strip().upper() in IN_STOCK_VALUES
+
+
 @dataclass(frozen=True)
 class Product:
     id: int | None
