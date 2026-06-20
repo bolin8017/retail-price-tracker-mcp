@@ -29,3 +29,8 @@
   runtime, and the PaddleOCR provider was updated to the 3.x API (`predict()` +
   `rec_texts`) with oneDNN disabled to avoid a PP-OCRv6 inference crash on some
   CPUs.
+- Fix the resolve → track → check chain. `resolve_product` now builds UNIQLO
+  URLs from the searchable style code (`products/E<code>-000`) instead of the
+  internal `productCode`, so a product found by name/photo can actually be
+  price-checked. OCR query building also drops marketing/disclaimer sentences,
+  so a real in-store product-sign photo resolves to candidates instead of none.

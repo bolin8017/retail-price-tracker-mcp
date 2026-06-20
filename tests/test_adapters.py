@@ -4,7 +4,11 @@ from typing import Any
 
 import httpx
 
-from retail_price_tracker_mcp.adapters.uniqlo_tw import UniqloTwAdapter
+from retail_price_tracker_mcp.adapters.uniqlo_tw import (
+    UniqloTwAdapter,
+    _candidate_from_product,
+    _search_query_for_code,
+)
 from retail_price_tracker_mcp.models import Product
 
 
@@ -95,6 +99,26 @@ def test_uniqlo_tw_does_not_fabricate_price_when_no_match(monkeypatch):
     assert result.events[0]["event_type"] == "unsupported_live_fetch"
 
 
+def test_candidate_url_is_checkable_via_style_code():
+    # resolve() must build a URL that check_product can re-fetch: it has to carry
+    # the searchable 6-digit style code, not the internal `productCode` (u...),
+    # which the description-search API cannot look up.
+    product = {
+        "productCode": "u0000000054386",
+        "code": "486091",
+        "pubSuffix": "000",
+        "productName": "女裝 棉質舒適九分褲 486091",
+        "shortName": "棉質舒適九分褲",
+        "minPrice": 790,
+        "originPrice": 790,
+        "stock": "Y",
+    }
+    candidate = _candidate_from_product(product)
+    assert candidate["url"] == "https://www.uniqlo.com/tw/zh_TW/products/E486091-000"
+    code = UniqloTwAdapter().parse_product_code(candidate["url"])
+    assert _search_query_for_code(code) == "486091"
+
+
 def test_uniqlo_tw_resolves_product_candidates(monkeypatch):
     def fake_post(*args: Any, **kwargs: Any) -> FakeResponse:
         assert kwargs["json"]["description"] == "AIRism"
@@ -129,7 +153,7 @@ def test_uniqlo_tw_resolves_product_candidates(monkeypatch):
             "adapter": "uniqlo_tw",
             "product_code": "u0000000053128",
             "name": "AIRism棉質寬版圓領T恤",
-            "url": "https://www.uniqlo.com/tw/zh_TW/product-detail.html?productCode=u0000000053128",
+            "url": "https://www.uniqlo.com/tw/zh_TW/products/E475355-000",
             "current_price": 590,
             "origin_price": 590,
             "currency": "TWD",

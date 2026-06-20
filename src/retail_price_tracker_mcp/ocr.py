@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any, Protocol
 
 PRICE_RE = re.compile(r"(?:NT\$|TWD|\$)?\s*([0-9][0-9,]{1,6})(?:\s*元)?", re.IGNORECASE)
+# A line that reads like marketing copy / a disclaimer rather than a product
+# name: it carries clause or sentence punctuation, or ends with a period.
+DESCRIPTION_RE = re.compile(r"[。．，、；：！？]|\.\s*$")
 # A single garment size token; longest/most-specific alternatives first so that,
 # e.g., "XXL" is preferred over a partial "XL" match.
 _SIZE_TOKEN = r"(?:XXXL|XXL|XXS|XS|XL|[345]XL|S|M|L)"
@@ -102,6 +105,8 @@ def text_hints_from_ocr(lines: list[str]) -> list[str]:
         if SIZE_ONLY_RE.fullmatch(cleaned):
             continue
         if cleaned.upper().startswith(("NT$", "TWD")):
+            continue
+        if DESCRIPTION_RE.search(cleaned):
             continue
         hints.append(cleaned)
     return hints
