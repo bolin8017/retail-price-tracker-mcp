@@ -14,3 +14,8 @@
   optional OCR on a local image, derive a search query from the extracted text,
   and resolve product candidates. OCR is an optional `ocr` extra (PaddleOCR);
   the core install stays lightweight and tests use a static OCR provider.
+- `restock` event when a tracked product transitions from out-of-stock to
+  in-stock between checks, so cron summaries can report restocks as documented.
+- `notify_on_sale` now actually suppresses `sale_label` events when disabled.
+- Shared `is_in_stock` stock-flag helper used by the UNIQLO adapter and restock
+  detection.

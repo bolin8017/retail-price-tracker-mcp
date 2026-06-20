@@ -7,7 +7,7 @@ from typing import Any
 
 from .adapters import ADAPTERS, choose_adapter, get_adapter
 from .db import TrackerDB
-from .models import Product
+from .models import Product, is_in_stock
 from .ocr import OCRProvider, default_ocr_provider, parse_price_hint, query_from_ocr
 
 
@@ -45,6 +45,10 @@ class TrackerService:
         if product is None:
             raise ValueError(f"Product not found: {product_id}")
         adapter = get_adapter(product.adapter)
+        # Read the last recorded check before this one is persisted, so we can
+        # detect transitions such as a restock.
+        previous = self.db.history(product_id, limit=1)
+        previous_stock = previous[0]["stock_status"] if previous else None
         result = adapter.check(product)
         events = list(result.events)
         if (
@@ -59,6 +63,14 @@ class TrackerService:
             and result.current_price <= product.target_price
         ):
             events.append({"event_type": "below_target"})
+        if (
+            previous_stock is not None
+            and not is_in_stock(previous_stock)
+            and is_in_stock(result.stock_status)
+        ):
+            events.append({"event_type": "restock"})
+        if not product.notify_on_sale:
+            events = [event for event in events if event.get("event_type") != "sale_label"]
         result = type(result)(**{**asdict(result), "events": events})
         self.db.record_check(result)
         return asdict(result)
