@@ -1,16 +1,26 @@
 # Hermes integration
 
-Hermes has a native MCP client. Configure this server in `~/.hermes/config.yaml`:
+Hermes has a native MCP client. The package is not published to PyPI yet, so `uvx`
+installs and runs it straight from GitHub. Configure this server in
+`~/.hermes/config.yaml`:
 
 ```yaml
 mcp_servers:
   retail_price_tracker:
     command: "uvx"
-    args: ["retail-price-tracker-mcp"]
+    args: ["--from", "git+https://github.com/bolin8017/retail-price-tracker-mcp", "retail-price-tracker-mcp"]
     env:
       PRICE_TRACKER_DB: "/home/USER/Documents/Hermes/price-tracker/tracker.db"
     timeout: 120
     connect_timeout: 60
+```
+
+To run from a local clone instead (development or offline), point Hermes at the
+checkout so edits apply immediately and no network fetch is needed:
+
+```yaml
+    command: "uv"
+    args: ["run", "--directory", "/path/to/retail-price-tracker-mcp", "retail-price-tracker-mcp"]
 ```
 
 Restart Hermes after changing MCP configuration.

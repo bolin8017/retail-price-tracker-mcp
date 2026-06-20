@@ -22,3 +22,6 @@
 - SQLite connections now use WAL journaling and a busy timeout so the MCP
   server and a cron job can read/write concurrently without lock errors.
 - `py.typed` marker so downstream consumers get the package's type hints.
+- Install docs now run the server via `uvx --from git+https://...` (or a local
+  clone) because the package is not published to PyPI; the previous
+  `uvx retail-price-tracker-mcp` examples did not resolve.

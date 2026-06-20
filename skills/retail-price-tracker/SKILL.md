@@ -16,8 +16,10 @@ Use this skill when the user wants to track retail product prices, especially UN
 
 ## Install
 
+The package is not on PyPI yet, so `uvx` installs and runs it straight from GitHub:
+
 ```bash
-uvx retail-price-tracker-mcp --help
+uvx --from git+https://github.com/bolin8017/retail-price-tracker-mcp retail-price-tracker-mcp --help
 ```
 
 For local development:
@@ -37,12 +39,15 @@ Add to `~/.hermes/config.yaml`:
 mcp_servers:
   retail_price_tracker:
     command: "uvx"
-    args: ["retail-price-tracker-mcp"]
+    args: ["--from", "git+https://github.com/bolin8017/retail-price-tracker-mcp", "retail-price-tracker-mcp"]
     env:
       PRICE_TRACKER_DB: "/home/USER/Documents/Hermes/price-tracker/tracker.db"
     timeout: 120
     connect_timeout: 60
 ```
+
+To run from a local clone instead (development or offline), use `command: "uv"`
+with `args: ["run", "--directory", "/path/to/retail-price-tracker-mcp", "retail-price-tracker-mcp"]`.
 
 Restart Hermes after editing config.
 

@@ -76,17 +76,27 @@ raises a clear error explaining how to install it.
 
 ## Hermes configuration
 
-Add this to `~/.hermes/config.yaml`:
+Add this to `~/.hermes/config.yaml`. The package is not published to PyPI yet, so
+`uvx` installs and runs it straight from GitHub:
 
 ```yaml
 mcp_servers:
   retail_price_tracker:
     command: "uvx"
-    args: ["retail-price-tracker-mcp"]
+    args: ["--from", "git+https://github.com/bolin8017/retail-price-tracker-mcp", "retail-price-tracker-mcp"]
     env:
       PRICE_TRACKER_DB: "/home/USER/Documents/Hermes/price-tracker/tracker.db"
     timeout: 120
     connect_timeout: 60
+```
+
+**Running from a local clone (development / offline):** if you already have the
+repo checked out, point Hermes at it so edits take effect immediately and no
+network fetch is needed — replace the `command`/`args` above with:
+
+```yaml
+    command: "uv"
+    args: ["run", "--directory", "/path/to/retail-price-tracker-mcp", "retail-price-tracker-mcp"]
 ```
 
 After restarting Hermes, tools will be available with names like:
