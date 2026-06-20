@@ -19,3 +19,6 @@
 - `notify_on_sale` now actually suppresses `sale_label` events when disabled.
 - Shared `is_in_stock` stock-flag helper used by the UNIQLO adapter and restock
   detection.
+- SQLite connections now use WAL journaling and a busy timeout so the MCP
+  server and a cron job can read/write concurrently without lock errors.
+- `py.typed` marker so downstream consumers get the package's type hints.

@@ -55,6 +55,10 @@ class TrackerDB:
     def connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path)
         conn.row_factory = sqlite3.Row
+        # WAL lets the MCP server and a cron job read/write concurrently; the
+        # busy timeout makes a contending writer wait instead of failing fast.
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         return conn
 
     def _init(self) -> None:
