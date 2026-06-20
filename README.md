@@ -16,6 +16,7 @@ The first adapter target is **UNIQLO Taiwan**. The project is intentionally adap
 - Store adapter architecture.
 - UNIQLO Taiwan adapter with search-based current price lookup and safe failure modes.
 - Generic static adapter for tests and local demonstrations.
+- Optional, local OCR-assisted resolution from a price-label image (PaddleOCR extra).
 - Hermes skill package with install/config/cron guidance.
 - Standard open-source project files: CI, issue templates, PR template, contributing guide, security policy, code of conduct.
 
@@ -30,6 +31,7 @@ The first adapter target is **UNIQLO Taiwan**. The project is intentionally adap
 | `price_history` | Read historical prices for a product. |
 | `remove_product` | Deactivate tracking for a product. |
 | `resolve_product` | Search adapters for candidate products from a name, OCR text, or product code. |
+| `resolve_product_from_image` | Run optional OCR on a local image, then resolve product candidates from the extracted text. |
 
 ## Quick start for development
 
@@ -55,6 +57,22 @@ uv run retail-price-tracker add 'https://www.uniqlo.com/tw/zh_TW/products/E12345
 uv run retail-price-tracker list
 uv run retail-price-tracker resolve 'AIRism 棉質寬版圓領T恤' --limit 3
 ```
+
+### Optional OCR-assisted resolution
+
+OCR is shipped as an optional extra so the core install stays lightweight and
+no models are downloaded by default. Install it only when you need to resolve a
+product from a photo of a price label:
+
+```bash
+uv pip install -e '.[ocr]'   # pulls in PaddleOCR
+uv run retail-price-tracker resolve-image /path/to/label.jpg --limit 5
+```
+
+The image is run through OCR locally, price/size-only lines are stripped, and the
+remaining text becomes a query for `resolve_product`. The project does not build a
+custom OCR model; PaddleOCR is the primary engine. Without the extra, the tool
+raises a clear error explaining how to install it.
 
 ## Hermes configuration
 
@@ -100,7 +118,7 @@ Use the retail price tracker MCP tools to run check_all. If there are price drop
 
 - Harden UNIQLO Taiwan live price fetching with more URL formats and stock detail support.
 - Size/color stock tracking.
-- `resolve_product` search/OCR-assisted flow.
+- Improve OCR resolution accuracy and add an EasyOCR fallback provider.
 - changedetection.io backend integration.
 - More adapters: GU, MUJI, momo, booksellers.
 - HTTP MCP transport and Docker image.
