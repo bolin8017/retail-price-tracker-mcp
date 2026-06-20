@@ -52,6 +52,10 @@ Restart Hermes after editing config.
 2. If the user provides only a product name, OCR result, or partial code, call
    `mcp_retail_price_tracker_resolve_product` first and ask them to choose from
    the candidates unless one match is clearly unambiguous.
+2b. If the user provides a photo of a price label, call
+   `mcp_retail_price_tracker_resolve_product_from_image` with a local image path.
+   OCR is an optional extra (PaddleOCR) and runs locally; confirm the candidate
+   with the user before adding it.
 3. If they specify a target price, pass `target_price` as an integer in local currency.
 4. For scheduled checks, create a Hermes cron job that calls `check_all`.
 5. Report only meaningful events: price drop, below target, sale, restock, or adapter errors.
@@ -67,4 +71,7 @@ Use the retail price tracker MCP tools to run check_all. If there are price drop
 - The `uniqlo_tw` adapter uses UNIQLO Taiwan's search endpoint for current prices.
   If it returns no match or errors, do not invent prices; surface the explicit event.
 - If the MCP tools are missing, verify `mcp_servers` config and restart Hermes.
+- `resolve_product_from_image` needs the optional `ocr` extra installed
+  (`uv pip install -e '.[ocr]'`); without it the tool returns a clear install error.
+  Do not invent OCR text, prices, or matches.
 - Use local SQLite paths under `Documents/Hermes/` for user-owned tracker data.

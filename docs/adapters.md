@@ -36,6 +36,15 @@ If the search API does not return a matching product or the request fails, the
 adapter returns an explicit `unsupported_live_fetch` event instead of inventing a
 price.
 
+## OCR-assisted resolution
+
+OCR is not an adapter. It is an optional pre-processing layer (`ocr.py`) that turns
+an image into text lines, strips price-only and size-only lines, and builds a query
+string. That query is then handed to the normal `resolve(query, limit)` path, so OCR
+benefits every adapter without store-specific changes. PaddleOCR is the primary
+engine and is lazy-imported behind the optional `ocr` extra; tests inject a static
+provider so no model is downloaded.
+
 ## Adding a store
 
 1. Implement a class in `src/retail_price_tracker_mcp/adapters/`.

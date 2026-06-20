@@ -60,6 +60,12 @@ def resolve_product(query: str, limit: int = 5) -> dict[str, Any]:
     return _service.resolve_product(query, limit)
 
 
+@mcp.tool()
+def resolve_product_from_image(image_path: str, limit: int = 5) -> dict[str, Any]:
+    """Run optional OCR on an image and resolve product candidates from extracted text."""
+    return _service.resolve_product_from_image(image_path, limit)
+
+
 def main() -> None:
     mcp.run()
 

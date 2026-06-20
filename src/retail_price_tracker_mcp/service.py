@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from .adapters import ADAPTERS, choose_adapter, get_adapter
 from .db import TrackerDB
 from .models import Product
+from .ocr import OCRProvider, default_ocr_provider, parse_price_hint, query_from_ocr
 
 
 class TrackerService:
-    def __init__(self, db: TrackerDB):
+    def __init__(self, db: TrackerDB, ocr_provider: OCRProvider | None = None):
         self.db = db
+        self.ocr_provider = ocr_provider
 
     def add_product(
         self,
@@ -95,6 +98,32 @@ class TrackerService:
             except Exception as exc:  # noqa: BLE001 - expose adapter lookup failures to callers
                 errors.append({"adapter": adapter.name, "error": str(exc)})
         return {"query": query, "candidates": candidates[:limit], "errors": errors}
+
+    def resolve_product_from_image(self, image_path: str, limit: int = 5) -> dict[str, Any]:
+        path = Path(image_path).expanduser()
+        if not path.exists():
+            raise FileNotFoundError(str(path))
+
+        provider = self.ocr_provider or default_ocr_provider()
+        ocr_result = provider.extract_text(path)
+        query = query_from_ocr(ocr_result.text_lines)
+        if query:
+            resolved = self.resolve_product(query, limit=limit)
+        else:
+            resolved = {
+                "query": query,
+                "candidates": [],
+                "errors": [{"adapter": "ocr", "error": "OCR produced no searchable text."}],
+            }
+        return {
+            "ocr": {
+                "provider": ocr_result.provider,
+                "text_lines": ocr_result.text_lines,
+                "price_hint": parse_price_hint(ocr_result.text_lines),
+                "query": query,
+            },
+            **resolved,
+        }
 
     @staticmethod
     def _product_to_dict(product: Product) -> dict[str, Any]:

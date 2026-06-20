@@ -22,6 +22,9 @@ def build_parser() -> argparse.ArgumentParser:
     resolve = sub.add_parser("resolve")
     resolve.add_argument("query")
     resolve.add_argument("--limit", type=int, default=5)
+    resolve_image = sub.add_parser("resolve-image")
+    resolve_image.add_argument("image_path")
+    resolve_image.add_argument("--limit", type=int, default=5)
     return parser
 
 
@@ -36,6 +39,8 @@ def main() -> None:
         data = service.check_product(args.product_id)
     elif args.command == "resolve":
         data = service.resolve_product(args.query, args.limit)
+    elif args.command == "resolve-image":
+        data = service.resolve_product_from_image(args.image_path, args.limit)
     else:  # pragma: no cover
         raise SystemExit(2)
     print(json.dumps(data, ensure_ascii=False, indent=2))
