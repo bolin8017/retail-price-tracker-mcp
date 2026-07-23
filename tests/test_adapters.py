@@ -99,6 +99,27 @@ def test_uniqlo_tw_does_not_fabricate_price_when_no_match(monkeypatch):
     assert result.events[0]["event_type"] == "unsupported_live_fetch"
 
 
+def test_uniqlo_tw_failed_fetch_reports_no_observation(monkeypatch):
+    # A failed fetch learned nothing: it must not re-present the stored price
+    # as a fresh observation (that fabricates history rows and re-triggers
+    # price events from stale data).
+    def fake_post(*args: Any, **kwargs: Any) -> FakeResponse:
+        raise httpx.ConnectError("boom")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E471234-000",
+        adapter=adapter.name,
+        current_price=350,
+        target_price=400,
+    )
+    result = adapter.check(product)
+    assert result.current_price is None
+    assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
 def test_candidate_url_is_checkable_via_style_code():
     # resolve() must build a URL that check_product can re-fetch: it has to carry
     # the searchable 6-digit style code, not the internal `productCode` (u...),

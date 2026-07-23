@@ -45,10 +45,10 @@ class TrackerService:
         if product is None:
             raise ValueError(f"Product not found: {product_id}")
         adapter = get_adapter(product.adapter)
-        # Read the last recorded check before this one is persisted, so we can
-        # detect transitions such as a restock.
-        previous = self.db.history(product_id, limit=1)
-        previous_stock = previous[0]["stock_status"] if previous else None
+        # Read the last recorded stock observation before this one is
+        # persisted, so we can detect transitions such as a restock. Checks
+        # that learned nothing (stock_status NULL) are skipped.
+        previous_stock = self.db.last_stock_status(product_id)
         result = adapter.check(product)
         events = list(result.events)
         if (
