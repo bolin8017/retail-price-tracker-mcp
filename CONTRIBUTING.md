@@ -4,12 +4,14 @@ Thank you for considering a contribution.
 
 ## Development setup
 
+Use `uv sync` so your tool versions match the lockfile CI uses (a plain
+`uv pip install` resolves fresh and can drift from CI):
+
 ```bash
-uv venv
-uv pip install -e '.[dev]'
-uv run pytest
+uv sync --extra dev
+uv run pytest --cov=retail_price_tracker_mcp
 uv run ruff check .
-uv run mypy src
+uv run mypy
 ```
 
 ## Guidelines
