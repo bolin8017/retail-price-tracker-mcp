@@ -99,6 +99,48 @@ def test_uniqlo_tw_does_not_fabricate_price_when_no_match(monkeypatch):
     assert result.events[0]["event_type"] == "unsupported_live_fetch"
 
 
+def test_uniqlo_tw_check_survives_non_json_body(monkeypatch):
+    # An HTTP 200 with a non-JSON body (maintenance page, truncated response)
+    # must take the safe unsupported path, not raise out of check().
+    class NonJsonResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> Any:
+            import json
+
+            return json.loads("<html>maintenance</html>")
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: NonJsonResponse())
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E475355-000",
+        adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
+def test_uniqlo_tw_check_survives_non_dict_payload(monkeypatch):
+    class ArrayResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> Any:
+            return ["unexpected", "shape"]
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: ArrayResponse())
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E475355-000",
+        adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
 def test_candidate_url_is_checkable_via_style_code():
     # resolve() must build a URL that check_product can re-fetch: it has to carry
     # the searchable 6-digit style code, not the internal `productCode` (u...),
