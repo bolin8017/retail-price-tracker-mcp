@@ -29,6 +29,37 @@ def test_connection_uses_wal_and_busy_timeout(tmp_path):
     assert busy_timeout >= 1000
 
 
+def test_event_values_reflect_the_event_type(tmp_path):
+    # A restock row must not be described by price numbers, and a sale row
+    # should carry its label; otherwise the events table misleads later
+    # analysis ("restock: 590 -> 590").
+    db = TrackerDB(tmp_path / "tracker.db")
+    product = db.add_product(Product(id=None, url="static://shirt", adapter="generic_static"))
+    db.record_check(
+        CheckResult(
+            product_id=product.id or 0,
+            name="Demo",
+            url="static://shirt",
+            adapter="generic_static",
+            current_price=590,
+            stock_status="Y",
+            events=[
+                {"event_type": "restock"},
+                {"event_type": "sale_label", "label": "sale"},
+                {"event_type": "price_drop"},
+            ],
+        )
+    )
+    with db.connect() as conn:
+        rows = {
+            row["event_type"]: row
+            for row in conn.execute("SELECT event_type, old_value, new_value FROM events")
+        }
+    assert rows["restock"]["new_value"] == "Y"
+    assert rows["sale_label"]["new_value"] == "sale"
+    assert rows["price_drop"]["new_value"] == "590"
+
+
 def test_record_history(tmp_path):
     db = TrackerDB(tmp_path / "tracker.db")
     product = db.add_product(Product(id=None, url="static://shirt", adapter="generic_static"))
