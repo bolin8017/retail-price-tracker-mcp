@@ -20,7 +20,8 @@ class UniqloTwAdapter:
 
     def supports(self, url: str) -> bool:
         parsed = urlparse(url)
-        if parsed.netloc not in UNIQLO_TW_HOSTS or "/tw/" not in parsed.path:
+        # hostname (unlike netloc) is lowercased and free of port/userinfo.
+        if parsed.hostname not in UNIQLO_TW_HOSTS or "/tw/" not in parsed.path:
             return False
         if "/products/" in parsed.path:
             return True
