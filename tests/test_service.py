@@ -24,6 +24,58 @@ def test_remove_product(tmp_path):
     assert service.list_products()["products"] == []
 
 
+def test_price_history_respects_days_window(tmp_path):
+    from datetime import UTC, datetime, timedelta
+
+    from retail_price_tracker_mcp.models import CheckResult
+
+    service = TrackerService(TrackerDB(tmp_path / "tracker.db"))
+    product = service.add_product("static://demo")
+
+    def record(price: int, days_ago: int) -> None:
+        checked_at = (
+            (datetime.now(UTC) - timedelta(days=days_ago)).replace(microsecond=0).isoformat()
+        )
+        service.db.record_check(
+            CheckResult(
+                product_id=product["id"],
+                name="Demo",
+                url="static://demo",
+                adapter="generic_static",
+                current_price=price,
+                checked_at=checked_at,
+            )
+        )
+
+    record(500, days_ago=200)  # outside the window
+    record(400, days_ago=10)  # inside
+    result = service.price_history(product["id"], days=90)
+    assert [item["price"] for item in result["history"]] == [400]
+
+
+def test_price_history_is_not_capped_at_200_rows(tmp_path):
+    from datetime import UTC, datetime, timedelta
+
+    from retail_price_tracker_mcp.models import CheckResult
+
+    service = TrackerService(TrackerDB(tmp_path / "tracker.db"))
+    product = service.add_product("static://demo")
+    base = datetime.now(UTC).replace(microsecond=0) - timedelta(days=1)
+    for i in range(250):
+        service.db.record_check(
+            CheckResult(
+                product_id=product["id"],
+                name="Demo",
+                url="static://demo",
+                adapter="generic_static",
+                current_price=100 + i,
+                checked_at=(base + timedelta(minutes=i)).isoformat(),
+            )
+        )
+    result = service.price_history(product["id"], days=90)
+    assert len(result["history"]) == 250
+
+
 def test_resolve_product_searches_adapters(monkeypatch, tmp_path):
     class FakeAdapter:
         name = "fake_store"

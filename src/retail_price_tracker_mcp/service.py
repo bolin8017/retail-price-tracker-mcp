@@ -89,12 +89,8 @@ class TrackerService:
         return {"checked": checked, "results": results, "events": events, "errors": errors}
 
     def price_history(self, product_id: int, days: int = 90) -> dict[str, Any]:
-        cutoff = datetime.now(UTC) - timedelta(days=days)
-        history = []
-        for item in self.db.history(product_id):
-            checked_at = datetime.fromisoformat(item["checked_at"])
-            if checked_at >= cutoff:
-                history.append(item)
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).replace(microsecond=0).isoformat()
+        history = self.db.history(product_id, limit=None, since=cutoff)
         return {"product_id": product_id, "days": days, "history": history}
 
     def remove_product(self, product_id: int) -> dict[str, Any]:

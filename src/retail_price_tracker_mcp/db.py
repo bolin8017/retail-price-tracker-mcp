@@ -165,18 +165,29 @@ class TrackerDB:
                     ),
                 )
 
-    def history(self, product_id: int, limit: int = 200) -> list[dict[str, Any]]:
+    def history(
+        self,
+        product_id: int,
+        limit: int | None = 200,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        sql = """
+            SELECT price, currency, sale_label, stock_status, checked_at, raw_json
+            FROM price_history
+            WHERE product_id = ?
+        """
+        params: list[Any] = [product_id]
+        if since is not None:
+            # checked_at is a fixed-width UTC ISO-8601 string, so lexicographic
+            # comparison matches chronological order.
+            sql += " AND checked_at >= ?"
+            params.append(since)
+        sql += " ORDER BY checked_at DESC, id DESC"
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
         with self.connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT price, currency, sale_label, stock_status, checked_at, raw_json
-                FROM price_history
-                WHERE product_id = ?
-                ORDER BY checked_at DESC, id DESC
-                LIMIT ?
-                """,
-                (product_id, limit),
-            ).fetchall()
+            rows = conn.execute(sql, params).fetchall()
         return [dict(row) | {"raw": json.loads(row["raw_json"])} for row in rows]
 
     @staticmethod
