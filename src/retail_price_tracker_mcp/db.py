@@ -130,6 +130,11 @@ class TrackerDB:
             row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
         return self._row_to_product(row) if row else None
 
+    def get_product_by_url(self, url: str) -> Product | None:
+        with self._transaction() as conn:
+            row = conn.execute("SELECT * FROM products WHERE url = ?", (url,)).fetchone()
+        return self._row_to_product(row) if row else None
+
     def deactivate_product(self, product_id: int) -> bool:
         with self._transaction() as conn:
             cur = conn.execute(
@@ -160,10 +165,14 @@ class TrackerDB:
                     json.dumps(result.raw, ensure_ascii=False),
                 ),
             )
-            conn.execute(
-                "UPDATE products SET current_price = ?, currency = ?, updated_at = ? WHERE id = ?",
-                (result.current_price, result.currency, utc_now_iso(), result.product_id),
-            )
+            # A check without a price learned nothing about the price; keep the
+            # stored baseline so future price_drop detection still has one.
+            if result.current_price is not None:
+                conn.execute(
+                    "UPDATE products SET current_price = ?, currency = ?, updated_at = ? "
+                    "WHERE id = ?",
+                    (result.current_price, result.currency, utc_now_iso(), result.product_id),
+                )
             for event in result.events:
                 conn.execute(
                     """
@@ -181,18 +190,44 @@ class TrackerDB:
                     ),
                 )
 
-    def history(self, product_id: int, limit: int = 200) -> list[dict[str, Any]]:
+    def last_stock_status(self, product_id: int) -> str | None:
+        """Most recent stock observation, skipping checks that learned nothing."""
         with self._transaction() as conn:
-            rows = conn.execute(
+            row = conn.execute(
                 """
-                SELECT price, currency, sale_label, stock_status, checked_at, raw_json
+                SELECT stock_status
                 FROM price_history
-                WHERE product_id = ?
+                WHERE product_id = ? AND stock_status IS NOT NULL
                 ORDER BY checked_at DESC, id DESC
-                LIMIT ?
+                LIMIT 1
                 """,
-                (product_id, limit),
-            ).fetchall()
+                (product_id,),
+            ).fetchone()
+        return str(row["stock_status"]) if row else None
+
+    def history(
+        self,
+        product_id: int,
+        limit: int | None = 200,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        sql = """
+            SELECT price, currency, sale_label, stock_status, checked_at, raw_json
+            FROM price_history
+            WHERE product_id = ?
+        """
+        params: list[Any] = [product_id]
+        if since is not None:
+            # checked_at is a fixed-width UTC ISO-8601 string, so lexicographic
+            # comparison matches chronological order.
+            sql += " AND checked_at >= ?"
+            params.append(since)
+        sql += " ORDER BY checked_at DESC, id DESC"
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+        with self._transaction() as conn:
+            rows = conn.execute(sql, params).fetchall()
         return [dict(row) | {"raw": json.loads(row["raw_json"])} for row in rows]
 
     @staticmethod

@@ -6,9 +6,17 @@ from pathlib import Path
 from typing import Any, Protocol
 
 PRICE_RE = re.compile(r"(?:NT\$|TWD|\$)?\s*([0-9][0-9,]{1,6})(?:\s*元)?", re.IGNORECASE)
-# A line that reads like marketing copy / a disclaimer rather than a product
-# name: it carries clause or sentence punctuation, or ends with a period.
-DESCRIPTION_RE = re.compile(r"[。．，、；：！？]|\.\s*$")
+# A number with an explicit currency marker; preferred over bare digit runs,
+# which on a garment label are often sizes or measurements ("W36 L34").
+PRICE_ANCHORED_RE = re.compile(
+    r"(?:NT\$|TWD|\$)\s*([0-9][0-9,]{1,6})|([0-9][0-9,]{1,6})\s*元", re.IGNORECASE
+)
+# Marketing copy / disclaimers read like sentences: they end with sentence
+# punctuation, or they are long clauses. A short name line containing a single
+# enumeration mark (e.g. "AIRism、涼感T恤") is still a product name.
+SENTENCE_END_RE = re.compile(r"[。．！？!?]\s*$|\.\s*$")
+CLAUSE_PUNCT_RE = re.compile(r"[。．，、；：！？]")
+DESCRIPTION_MIN_LEN = 20
 # A single garment size token; longest/most-specific alternatives first so that,
 # e.g., "XXL" is preferred over a partial "XL" match.
 _SIZE_TOKEN = r"(?:XXXL|XXL|XXS|XS|XL|[345]XL|S|M|L)"
@@ -85,13 +93,21 @@ def default_ocr_provider() -> OCRProvider:
 
 
 def parse_price_hint(lines: list[str]) -> int | None:
-    prices: list[int] = []
+    anchored: list[int] = []
+    bare: list[int] = []
     for line in lines:
-        for match in PRICE_RE.finditer(line.replace(",", "")):
+        cleaned = line.replace(",", "")
+        for match in PRICE_ANCHORED_RE.finditer(cleaned):
+            value = int(match.group(1) or match.group(2))
+            if 10 <= value <= 100000:
+                anchored.append(value)
+        for match in PRICE_RE.finditer(cleaned):
             value = int(match.group(1))
             if 10 <= value <= 100000:
-                prices.append(value)
-    return min(prices) if prices else None
+                bare.append(value)
+    if anchored:
+        return min(anchored)
+    return min(bare) if bare else None
 
 
 def text_hints_from_ocr(lines: list[str]) -> list[str]:
@@ -106,7 +122,9 @@ def text_hints_from_ocr(lines: list[str]) -> list[str]:
             continue
         if cleaned.upper().startswith(("NT$", "TWD")):
             continue
-        if DESCRIPTION_RE.search(cleaned):
+        if SENTENCE_END_RE.search(cleaned):
+            continue
+        if len(cleaned) >= DESCRIPTION_MIN_LEN and CLAUSE_PUNCT_RE.search(cleaned):
             continue
         hints.append(cleaned)
     return hints

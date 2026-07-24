@@ -36,6 +36,14 @@ def test_uniqlo_tw_supports_product_url():
     assert adapter.parse_product_code(url) == "E471234-000"
 
 
+def test_uniqlo_tw_supports_uppercase_host_and_explicit_port():
+    # Copy-pasted or normalized links must not fall through to "No adapter
+    # supports URL": hosts are case-insensitive and may carry a default port.
+    adapter = UniqloTwAdapter()
+    assert adapter.supports("https://WWW.UNIQLO.COM/tw/zh_TW/products/E471234-000")
+    assert adapter.supports("https://www.uniqlo.com:443/tw/zh_TW/products/E471234-000")
+
+
 def test_uniqlo_tw_supports_product_code_query():
     adapter = UniqloTwAdapter()
     url = "https://www.uniqlo.com/tw/zh_TW/product-detail.html?productCode=u0000000053128"
@@ -93,6 +101,107 @@ def test_uniqlo_tw_does_not_fabricate_price_when_no_match(monkeypatch):
         id=1,
         url="https://www.uniqlo.com/tw/zh_TW/products/E471234-000",
         adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.current_price is None
+    assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
+def test_uniqlo_tw_check_survives_non_json_body(monkeypatch):
+    # An HTTP 200 with a non-JSON body (maintenance page, truncated response)
+    # must take the safe unsupported path, not raise out of check().
+    class NonJsonResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> Any:
+            import json
+
+            return json.loads("<html>maintenance</html>")
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: NonJsonResponse())
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E475355-000",
+        adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
+def test_uniqlo_tw_check_survives_non_dict_payload(monkeypatch):
+    class ArrayResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> Any:
+            return ["unexpected", "shape"]
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: ArrayResponse())
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E475355-000",
+        adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
+def test_uniqlo_tw_does_not_use_unrelated_first_result(monkeypatch):
+    # A description search can return non-empty fuzzy results that have nothing
+    # to do with the tracked code; check() must not present the first one as
+    # this product's price.
+    def fake_post(*args: Any, **kwargs: Any) -> FakeResponse:
+        return FakeResponse(
+            {
+                "success": True,
+                "resp": [
+                    {
+                        "productList": [
+                            {
+                                "productCode": "u0000000099999",
+                                "productName": "毫無關聯的外套",
+                                "shortName": "毫無關聯的外套",
+                                "minPrice": 1990,
+                                "originPrice": 1990,
+                                "stock": "Y",
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E471234-000",
+        adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.current_price is None
+    assert result.name is None
+    assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
+def test_uniqlo_tw_failed_fetch_reports_no_observation(monkeypatch):
+    # A failed fetch learned nothing: it must not re-present the stored price
+    # as a fresh observation (that fabricates history rows and re-triggers
+    # price events from stale data).
+    def fake_post(*args: Any, **kwargs: Any) -> FakeResponse:
+        raise httpx.ConnectError("boom")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E471234-000",
+        adapter=adapter.name,
+        current_price=350,
+        target_price=400,
     )
     result = adapter.check(product)
     assert result.current_price is None
