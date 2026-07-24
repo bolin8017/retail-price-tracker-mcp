@@ -208,6 +208,41 @@ def test_uniqlo_tw_failed_fetch_reports_no_observation(monkeypatch):
     assert result.events[0]["event_type"] == "unsupported_live_fetch"
 
 
+def test_uniqlo_tw_check_does_not_emit_stock_events(monkeypatch):
+    # Stock transitions are the service's job (it knows the previous state);
+    # an adapter emitting stock_status on every out-of-stock check spams the
+    # cron summary with unchanged information.
+    def fake_post(*args: Any, **kwargs: Any) -> FakeResponse:
+        return FakeResponse(
+            {
+                "success": True,
+                "resp": [
+                    {
+                        "productList": [
+                            {
+                                "productCode": "u0000000053128",
+                                "productName": "AIRism棉質寬版圓領T恤 475355",
+                                "minPrice": 390,
+                                "stock": "N",
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E475355-000",
+        adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.stock_status == "N"
+    assert "stock_status" not in [event["event_type"] for event in result.events]
+
+
 def test_candidate_url_is_checkable_via_style_code():
     # resolve() must build a URL that check_product can re-fetch: it has to carry
     # the searchable 6-digit style code, not the internal `productCode` (u...),

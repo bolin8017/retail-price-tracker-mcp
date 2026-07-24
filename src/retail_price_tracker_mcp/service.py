@@ -67,10 +67,14 @@ class TrackerService:
             and result.current_price < product.current_price
         ):
             events.append({"event_type": "price_drop"})
+        # Events are edge-triggered: they fire when a state is entered, not on
+        # every check while it persists, so a cron summary stays silent when
+        # nothing changed.
         if (
             product.target_price is not None
             and result.current_price is not None
             and result.current_price <= product.target_price
+            and (product.current_price is None or product.current_price > product.target_price)
         ):
             events.append({"event_type": "below_target"})
         if (
@@ -79,6 +83,13 @@ class TrackerService:
             and is_in_stock(result.stock_status)
         ):
             events.append({"event_type": "restock"})
+        if (
+            previous_stock is not None
+            and is_in_stock(previous_stock)
+            and result.stock_status is not None
+            and not is_in_stock(result.stock_status)
+        ):
+            events.append({"event_type": "stock_status", "stock_status": result.stock_status})
         if not product.notify_on_sale:
             events = [event for event in events if event.get("event_type") != "sale_label"]
         result = type(result)(**{**asdict(result), "events": events})

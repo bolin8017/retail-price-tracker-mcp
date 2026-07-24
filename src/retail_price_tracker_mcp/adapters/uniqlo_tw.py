@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 
-from retail_price_tracker_mcp.models import CheckResult, Product, is_in_stock
+from retail_price_tracker_mcp.models import CheckResult, Product
 
 UNIQLO_TW_HOSTS = {"www.uniqlo.com", "uniqlo.com"}
 UNIQLO_TW_SEARCH_URL = "https://d.uniqlo.com/tw/p/search/products/by-description"
@@ -68,8 +68,6 @@ class UniqloTwAdapter:
         events: list[dict[str, Any]] = []
         if sale_label:
             events.append({"event_type": "sale_label", "label": sale_label})
-        if not is_in_stock(stock_status):
-            events.append({"event_type": "stock_status", "stock_status": stock_status})
 
         return CheckResult(
             product_id=product.id or 0,
