@@ -44,6 +44,20 @@ def test_text_hints_from_ocr_lines_discards_price_and_sizes():
     assert text_hints_from_ocr(lines) == ["AIRism Cotton Oversized Crew Neck T-Shirt"]
 
 
+def test_parse_price_hint_prefers_currency_anchored_numbers():
+    # Size/measurement tokens ("W36 L34") must not beat an explicit price.
+    assert parse_price_hint(["W36 L34", "$1,299"]) == 1299
+    assert parse_price_hint(["W36 L34", "1,299元"]) == 1299
+    # Without any currency anchor the bare-number fallback still applies.
+    assert parse_price_hint(["390"]) == 390
+
+
+def test_text_hints_keeps_short_name_with_enumeration_comma():
+    # A product-name line with a single 、 is not marketing copy; dropping it
+    # would leave the OCR query empty.
+    assert text_hints_from_ocr(["AIRism、涼感T恤", "NT$ 390"]) == ["AIRism、涼感T恤"]
+
+
 def test_text_hints_drops_description_sentences():
     # A real product sign carries marketing copy below the name. Sentence-like
     # lines must be dropped so the search query stays just the product name.
