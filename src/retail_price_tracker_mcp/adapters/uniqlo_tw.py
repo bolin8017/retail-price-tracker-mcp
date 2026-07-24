@@ -48,7 +48,9 @@ class UniqloTwAdapter:
 
         try:
             candidate = self._fetch_product_by_code(code)
-        except httpx.HTTPError as exc:
+        # ValueError also covers json.JSONDecodeError from a 200 response
+        # whose body is not JSON (maintenance page, truncated body).
+        except (httpx.HTTPError, ValueError) as exc:
             return self._unsupported(product, f"UNIQLO Taiwan search request failed: {exc}")
 
         if candidate is None:
@@ -147,8 +149,10 @@ def _search_query_for_code(code: str) -> str:
     return code
 
 
-def _extract_products(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def _extract_products(payload: Any) -> list[dict[str, Any]]:
     products: list[dict[str, Any]] = []
+    if not isinstance(payload, dict):
+        return products
     for block in payload.get("resp") or []:
         if isinstance(block, dict):
             for item in block.get("productList") or []:
