@@ -123,12 +123,14 @@ class UniqloTwAdapter:
         message: str,
         raw: dict[str, Any] | None = None,
     ) -> CheckResult:
+        # current_price stays None: this check learned nothing, and echoing the
+        # stored price would fabricate a fresh observation from stale data.
         return CheckResult(
             product_id=product.id or 0,
             name=product.name,
             url=product.url,
             adapter=self.name,
-            current_price=product.current_price,
+            current_price=None,
             currency=product.currency,
             events=[{"event_type": "unsupported_live_fetch", "message": message}],
             raw=raw or {"live_fetch": "unsupported", "message": message},
