@@ -36,6 +36,14 @@ def test_uniqlo_tw_supports_product_url():
     assert adapter.parse_product_code(url) == "E471234-000"
 
 
+def test_uniqlo_tw_supports_uppercase_host_and_explicit_port():
+    # Copy-pasted or normalized links must not fall through to "No adapter
+    # supports URL": hosts are case-insensitive and may carry a default port.
+    adapter = UniqloTwAdapter()
+    assert adapter.supports("https://WWW.UNIQLO.COM/tw/zh_TW/products/E471234-000")
+    assert adapter.supports("https://www.uniqlo.com:443/tw/zh_TW/products/E471234-000")
+
+
 def test_uniqlo_tw_supports_product_code_query():
     adapter = UniqloTwAdapter()
     url = "https://www.uniqlo.com/tw/zh_TW/product-detail.html?productCode=u0000000053128"
