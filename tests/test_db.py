@@ -29,6 +29,41 @@ def test_connection_uses_wal_and_busy_timeout(tmp_path):
     assert busy_timeout >= 1000
 
 
+def test_foreign_keys_are_enforced(tmp_path):
+    import sqlite3
+
+    import pytest
+
+    db = TrackerDB(tmp_path / "tracker.db")
+    orphan = CheckResult(
+        product_id=9999,
+        name="Ghost",
+        url="static://ghost",
+        adapter="generic_static",
+        current_price=100,
+    )
+    with pytest.raises(sqlite3.IntegrityError):
+        db.record_check(orphan)
+
+
+def test_record_check_does_not_move_updated_at_backwards(tmp_path):
+    db = TrackerDB(tmp_path / "tracker.db")
+    product = db.add_product(Product(id=None, url="static://shirt", adapter="generic_static"))
+    db.record_check(
+        CheckResult(
+            product_id=product.id or 0,
+            name="Demo",
+            url="static://shirt",
+            adapter="generic_static",
+            current_price=590,
+            checked_at="2000-01-01T00:00:00+00:00",  # stale adapter clock
+        )
+    )
+    refreshed = db.get_product(product.id or 0)
+    assert refreshed is not None
+    assert refreshed.updated_at >= product.created_at
+
+
 def test_event_values_reflect_the_event_type(tmp_path):
     # A restock row must not be described by price numbers, and a sale row
     # should carry its label; otherwise the events table misleads later

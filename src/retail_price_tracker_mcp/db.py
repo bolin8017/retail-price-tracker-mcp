@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -79,15 +81,29 @@ class TrackerDB:
         # busy timeout makes a contending writer wait instead of failing fast.
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=5000")
+        # SQLite leaves declared foreign keys unenforced per-connection unless
+        # asked; without this, orphan history/event rows insert silently.
+        conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
+    @contextmanager
+    def _transaction(self) -> Iterator[sqlite3.Connection]:
+        # sqlite3's own context manager only commits/rolls back; closing is on
+        # us, and a lingering read connection blocks WAL checkpointing.
+        conn = self.connect()
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
+
     def _init(self) -> None:
-        with self.connect() as conn:
+        with self._transaction() as conn:
             conn.executescript(SCHEMA)
 
     def add_product(self, product: Product) -> Product:
         now = utc_now_iso()
-        with self.connect() as conn:
+        with self._transaction() as conn:
             cur = conn.execute(
                 """
                 INSERT INTO products
@@ -126,16 +142,21 @@ class TrackerDB:
         if active_only:
             sql += " WHERE active = 1"
         sql += " ORDER BY id"
-        with self.connect() as conn:
+        with self._transaction() as conn:
             return [self._row_to_product(row) for row in conn.execute(sql, params)]
 
     def get_product(self, product_id: int) -> Product | None:
-        with self.connect() as conn:
+        with self._transaction() as conn:
             row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
         return self._row_to_product(row) if row else None
 
+    def get_product_by_url(self, url: str) -> Product | None:
+        with self._transaction() as conn:
+            row = conn.execute("SELECT * FROM products WHERE url = ?", (url,)).fetchone()
+        return self._row_to_product(row) if row else None
+
     def deactivate_product(self, product_id: int) -> bool:
-        with self.connect() as conn:
+        with self._transaction() as conn:
             cur = conn.execute(
                 "UPDATE products SET active = 0, updated_at = ? WHERE id = ?",
                 (utc_now_iso(), product_id),
@@ -143,7 +164,7 @@ class TrackerDB:
             return cur.rowcount > 0
 
     def record_check(self, result: CheckResult) -> None:
-        with self.connect() as conn:
+        with self._transaction() as conn:
             previous = conn.execute(
                 "SELECT current_price FROM products WHERE id = ?", (result.product_id,)
             ).fetchone()
@@ -164,10 +185,14 @@ class TrackerDB:
                     json.dumps(result.raw, ensure_ascii=False),
                 ),
             )
-            conn.execute(
-                "UPDATE products SET current_price = ?, currency = ?, updated_at = ? WHERE id = ?",
-                (result.current_price, result.currency, result.checked_at, result.product_id),
-            )
+            # A check without a price learned nothing about the price; keep the
+            # stored baseline so future price_drop detection still has one.
+            if result.current_price is not None:
+                conn.execute(
+                    "UPDATE products SET current_price = ?, currency = ?, updated_at = ? "
+                    "WHERE id = ?",
+                    (result.current_price, result.currency, utc_now_iso(), result.product_id),
+                )
             for event in result.events:
                 old_value, new_value = _event_values(event, old_price, result)
                 conn.execute(
@@ -186,18 +211,44 @@ class TrackerDB:
                     ),
                 )
 
-    def history(self, product_id: int, limit: int = 200) -> list[dict[str, Any]]:
-        with self.connect() as conn:
-            rows = conn.execute(
+    def last_stock_status(self, product_id: int) -> str | None:
+        """Most recent stock observation, skipping checks that learned nothing."""
+        with self._transaction() as conn:
+            row = conn.execute(
                 """
-                SELECT price, currency, sale_label, stock_status, checked_at, raw_json
+                SELECT stock_status
                 FROM price_history
-                WHERE product_id = ?
+                WHERE product_id = ? AND stock_status IS NOT NULL
                 ORDER BY checked_at DESC, id DESC
-                LIMIT ?
+                LIMIT 1
                 """,
-                (product_id, limit),
-            ).fetchall()
+                (product_id,),
+            ).fetchone()
+        return str(row["stock_status"]) if row else None
+
+    def history(
+        self,
+        product_id: int,
+        limit: int | None = 200,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        sql = """
+            SELECT price, currency, sale_label, stock_status, checked_at, raw_json
+            FROM price_history
+            WHERE product_id = ?
+        """
+        params: list[Any] = [product_id]
+        if since is not None:
+            # checked_at is a fixed-width UTC ISO-8601 string, so lexicographic
+            # comparison matches chronological order.
+            sql += " AND checked_at >= ?"
+            params.append(since)
+        sql += " ORDER BY checked_at DESC, id DESC"
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+        with self._transaction() as conn:
+            rows = conn.execute(sql, params).fetchall()
         return [dict(row) | {"raw": json.loads(row["raw_json"])} for row in rows]
 
     @staticmethod

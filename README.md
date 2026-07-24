@@ -38,8 +38,7 @@ The first adapter target is **UNIQLO Taiwan**. The project is intentionally adap
 ```bash
 git clone https://github.com/bolin8017/retail-price-tracker-mcp.git
 cd retail-price-tracker-mcp
-uv venv
-uv pip install -e '.[dev]'
+uv sync --extra dev   # locked versions, same toolchain as CI
 uv run pytest
 uv run ruff check .
 ```
