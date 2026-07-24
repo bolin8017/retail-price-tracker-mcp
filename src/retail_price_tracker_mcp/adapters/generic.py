@@ -14,18 +14,8 @@ class GenericStaticAdapter:
         return url.startswith("static://") or url.startswith("test://")
 
     def check(self, product: Product) -> CheckResult:
-        events = []
-        if (
-            product.current_price is not None
-            and product.target_price is not None
-            and product.current_price <= product.target_price
-        ):
-            events.append(
-                {
-                    "event_type": "below_target",
-                    "message": "Current static price is at or below target.",
-                }
-            )
+        # Event derivation (below_target etc.) is the service's job; an
+        # adapter emitting its own copy double-reports the same state.
         return CheckResult(
             product_id=product.id or 0,
             name=product.name,
@@ -33,7 +23,6 @@ class GenericStaticAdapter:
             adapter=self.name,
             current_price=product.current_price,
             currency=product.currency,
-            events=events,
             raw={"source": "generic_static"},
         )
 

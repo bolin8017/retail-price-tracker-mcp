@@ -106,6 +106,65 @@ def test_check_emits_below_target_at_or_under_target(tmp_path, monkeypatch):
     assert "below_target" in _event_types(first)
 
 
+def test_below_target_fires_only_on_crossing(tmp_path, monkeypatch):
+    # The documented cron contract is "stay silent if nothing changed"; a
+    # price sitting below target must not re-notify on every check.
+    service = _service(tmp_path, [_result(price=380), _result(price=380)], monkeypatch)
+    product = service.add_product("stub://demo", target_price=390)
+    first = service.check_product(product["id"])
+    second = service.check_product(product["id"])
+    assert "below_target" in _event_types(first)
+    assert "below_target" not in _event_types(second)
+
+
+def test_below_target_refires_after_price_recovers(tmp_path, monkeypatch):
+    service = _service(
+        tmp_path, [_result(price=380), _result(price=450), _result(price=380)], monkeypatch
+    )
+    product = service.add_product("stub://demo", target_price=390)
+    assert "below_target" in _event_types(service.check_product(product["id"]))
+    assert "below_target" not in _event_types(service.check_product(product["id"]))
+    assert "below_target" in _event_types(service.check_product(product["id"]))
+
+
+def test_stock_status_event_on_going_out_of_stock(tmp_path, monkeypatch):
+    service = _service(tmp_path, [_result(stock="Y"), _result(stock="N")], monkeypatch)
+    product = service.add_product("stub://demo")
+    service.check_product(product["id"])
+    second = service.check_product(product["id"])
+    assert "stock_status" in _event_types(second)
+
+
+def test_no_stock_status_event_while_still_out_of_stock(tmp_path, monkeypatch):
+    service = _service(tmp_path, [_result(stock="N"), _result(stock="N")], monkeypatch)
+    product = service.add_product("stub://demo")
+    service.check_product(product["id"])
+    second = service.check_product(product["id"])
+    assert "stock_status" not in _event_types(second)
+
+
+def test_generic_static_below_target_not_duplicated_or_respammed(tmp_path, monkeypatch):
+    # generic_static echoes the stored price, so a steady below-target state
+    # must produce zero below_target events (no adapter/service double-emit,
+    # no level-triggered re-fire).
+    from retail_price_tracker_mcp.adapters.generic import GenericStaticAdapter
+
+    monkeypatch.setattr(adapters_pkg, "ADAPTERS", [GenericStaticAdapter()])
+    service = TrackerService(TrackerDB(tmp_path / "tracker.db"))
+    product = service.add_product("static://demo", target_price=500)
+    service.db.record_check(
+        CheckResult(
+            product_id=product["id"],
+            name="Demo",
+            url="static://demo",
+            adapter="generic_static",
+            current_price=400,
+        )
+    )
+    check = service.check_product(product["id"])
+    assert _event_types(check).count("below_target") == 0
+
+
 def test_check_emits_restock_when_stock_returns(tmp_path, monkeypatch):
     service = _service(tmp_path, [_result(stock="N"), _result(stock="Y")], monkeypatch)
     product = service.add_product("stub://demo")
