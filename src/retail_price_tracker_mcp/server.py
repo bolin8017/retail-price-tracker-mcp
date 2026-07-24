@@ -9,61 +9,74 @@ from .db import TrackerDB
 from .service import TrackerService
 
 mcp = FastMCP("retail-price-tracker")
-_service = TrackerService(TrackerDB(default_db_path()))
+_service: TrackerService | None = None
+
+
+def _get_service() -> TrackerService:
+    # Created lazily so importing this module (inspectors, tests, docs tools)
+    # does not open or create a database as a side effect.
+    global _service
+    if _service is None:
+        _service = TrackerService(TrackerDB(default_db_path()))
+    return _service
 
 
 @mcp.tool()
 def add_product(
     url: str,
     target_price: int | None = None,
-    notify_on_sale: bool = True,
+    notify_on_sale: bool | None = None,
     sizes: list[str] | None = None,
     name: str | None = None,
 ) -> dict[str, Any]:
-    """Add a retail product URL to the tracker."""
-    return _service.add_product(url, target_price, notify_on_sale, sizes, name)
+    """Add a retail product URL to the tracker.
+
+    Omitted fields default for new products (notify_on_sale=True) and keep
+    their stored values when the URL is already tracked.
+    """
+    return _get_service().add_product(url, target_price, notify_on_sale, sizes, name)
 
 
 @mcp.tool()
 def list_products(active_only: bool = True) -> dict[str, Any]:
     """List tracked products."""
-    return _service.list_products(active_only)
+    return _get_service().list_products(active_only)
 
 
 @mcp.tool()
 def check_product(product_id: int) -> dict[str, Any]:
     """Check one product and record history/events."""
-    return _service.check_product(product_id)
+    return _get_service().check_product(product_id)
 
 
 @mcp.tool()
 def check_all() -> dict[str, Any]:
     """Check all active products; useful for scheduled jobs."""
-    return _service.check_all()
+    return _get_service().check_all()
 
 
 @mcp.tool()
 def price_history(product_id: int, days: int = 90) -> dict[str, Any]:
     """Return price history for a product."""
-    return _service.price_history(product_id, days)
+    return _get_service().price_history(product_id, days)
 
 
 @mcp.tool()
 def remove_product(product_id: int) -> dict[str, Any]:
     """Deactivate tracking for a product."""
-    return _service.remove_product(product_id)
+    return _get_service().remove_product(product_id)
 
 
 @mcp.tool()
 def resolve_product(query: str, limit: int = 5) -> dict[str, Any]:
     """Search store adapters for product candidates matching a query."""
-    return _service.resolve_product(query, limit)
+    return _get_service().resolve_product(query, limit)
 
 
 @mcp.tool()
 def resolve_product_from_image(image_path: str, limit: int = 5) -> dict[str, Any]:
     """Run optional OCR on an image and resolve product candidates from extracted text."""
-    return _service.resolve_product_from_image(image_path, limit)
+    return _get_service().resolve_product_from_image(image_path, limit)
 
 
 def main() -> None:

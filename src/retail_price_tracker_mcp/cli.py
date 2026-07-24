@@ -17,7 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     add.add_argument("url")
     add.add_argument("--name")
     add.add_argument("--target-price", type=int)
-    add.add_argument("--size", action="append", default=[])
+    add.add_argument("--size", action="append", default=None)
     sub.add_parser("list")
     check = sub.add_parser("check")
     check.add_argument("product_id", type=int)
@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _dispatch(service: TrackerService, args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "add":
-        return service.add_product(args.url, args.target_price, True, args.size, args.name)
+        return service.add_product(args.url, args.target_price, None, args.size, args.name)
     if args.command == "list":
         return service.list_products()
     if args.command == "check":
