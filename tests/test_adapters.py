@@ -243,6 +243,41 @@ def test_uniqlo_tw_check_does_not_emit_stock_events(monkeypatch):
     assert "stock_status" not in [event["event_type"] for event in result.events]
 
 
+def test_uniqlo_tw_missing_stock_field_is_no_observation(monkeypatch):
+    # A live capture (2026-07-24) confirms `stock` is a Y/N-style string flag.
+    # When the field is absent, fabricating an "unknown" observation made
+    # Y -> unknown look like a sellout and unknown -> Y like a restock;
+    # missing must mean "no observation" (None), which the service skips.
+    def fake_post(*args: Any, **kwargs: Any) -> FakeResponse:
+        return FakeResponse(
+            {
+                "success": True,
+                "resp": [
+                    {
+                        "productList": [
+                            {
+                                "productCode": "u0000000053128",
+                                "productName": "AIRism棉質寬版圓領T恤 475355",
+                                "minPrice": 390,
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E475355-000",
+        adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.current_price == 390
+    assert result.stock_status is None
+
+
 def test_candidate_url_is_checkable_via_style_code():
     # resolve() must build a URL that check_product can re-fetch: it has to carry
     # the searchable 6-digit style code, not the internal `productCode` (u...),

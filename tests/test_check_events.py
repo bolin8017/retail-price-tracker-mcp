@@ -135,6 +135,20 @@ def test_stock_status_event_on_going_out_of_stock(tmp_path, monkeypatch):
     assert "stock_status" in _event_types(second)
 
 
+def test_no_stock_events_across_a_missing_observation(tmp_path, monkeypatch):
+    # Y -> (no stock info) must not read as a sellout, nor the recovery to Y
+    # as a restock.
+    service = _service(
+        tmp_path, [_result(stock="Y"), _result(stock=None), _result(stock="Y")], monkeypatch
+    )
+    product = service.add_product("stub://demo")
+    service.check_product(product["id"])
+    second = service.check_product(product["id"])
+    third = service.check_product(product["id"])
+    assert "stock_status" not in _event_types(second)
+    assert "restock" not in _event_types(third)
+
+
 def test_no_stock_status_event_while_still_out_of_stock(tmp_path, monkeypatch):
     service = _service(tmp_path, [_result(stock="N"), _result(stock="N")], monkeypatch)
     product = service.add_product("stub://demo")

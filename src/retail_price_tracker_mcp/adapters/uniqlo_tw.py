@@ -64,7 +64,11 @@ class UniqloTwAdapter:
         current_price = _coerce_int(candidate.get("minPrice"))
         origin_price = _coerce_int(candidate.get("originPrice"))
         sale_label = _sale_label(candidate)
-        stock_status = str(candidate.get("stock") or "unknown")
+        # `stock` is a Y/N-style string flag (confirmed against the live API).
+        # Absent field -> None: fabricating an "unknown" observation would let
+        # Y -> unknown read as a sellout and unknown -> Y as a restock.
+        stock = candidate.get("stock")
+        stock_status = None if stock in (None, "") else str(stock)
         events: list[dict[str, Any]] = []
         if sale_label:
             events.append({"event_type": "sale_label", "label": sale_label})
