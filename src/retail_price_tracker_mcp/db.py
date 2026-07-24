@@ -9,6 +9,26 @@ from typing import Any
 
 from .models import CheckResult, Product, utc_now_iso
 
+
+def _event_values(
+    event: dict[str, Any], old_price: int | None, result: CheckResult
+) -> tuple[str | None, str | None]:
+    """old/new values describing the event itself, not always the price."""
+    event_type = event.get("event_type")
+    if event_type in ("restock", "stock_status"):
+        return None, result.stock_status
+    if event_type == "sale_label":
+        label = event.get("label") or result.sale_label
+        return None, None if label is None else str(label)
+    if event_type == "unsupported_live_fetch":
+        return None, None
+    # Price-shaped events (price_drop, below_target, ...) keep the transition.
+    return (
+        None if old_price is None else str(old_price),
+        None if result.current_price is None else str(result.current_price),
+    )
+
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -174,6 +194,7 @@ class TrackerDB:
                     (result.current_price, result.currency, utc_now_iso(), result.product_id),
                 )
             for event in result.events:
+                old_value, new_value = _event_values(event, old_price, result)
                 conn.execute(
                     """
                     INSERT INTO events
@@ -183,8 +204,8 @@ class TrackerDB:
                     (
                         result.product_id,
                         str(event.get("event_type", "unknown")),
-                        None if old_price is None else str(old_price),
-                        None if result.current_price is None else str(result.current_price),
+                        old_value,
+                        new_value,
                         result.checked_at,
                         json.dumps(event, ensure_ascii=False),
                     ),
