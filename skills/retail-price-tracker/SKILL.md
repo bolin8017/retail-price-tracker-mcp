@@ -16,10 +16,12 @@ Use this skill when the user wants to track retail product prices, especially UN
 
 ## Install
 
-The package is not on PyPI yet, so `uvx` installs and runs it straight from GitHub:
+The package is not on PyPI yet, so `uvx` installs and runs it straight from GitHub.
+Verify the install with the helper CLI (the `retail-price-tracker-mcp` server
+entry point speaks MCP over stdio and prints nothing on its own):
 
 ```bash
-uvx --from git+https://github.com/bolin8017/retail-price-tracker-mcp retail-price-tracker-mcp --help
+uvx --from git+https://github.com/bolin8017/retail-price-tracker-mcp retail-price-tracker --help
 ```
 
 For local development:

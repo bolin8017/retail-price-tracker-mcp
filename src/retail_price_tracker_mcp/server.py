@@ -25,11 +25,15 @@ def _get_service() -> TrackerService:
 def add_product(
     url: str,
     target_price: int | None = None,
-    notify_on_sale: bool = True,
+    notify_on_sale: bool | None = None,
     sizes: list[str] | None = None,
     name: str | None = None,
 ) -> dict[str, Any]:
-    """Add a retail product URL to the tracker."""
+    """Add a retail product URL to the tracker.
+
+    Omitted fields default for new products (notify_on_sale=True) and keep
+    their stored values when the URL is already tracked.
+    """
     return _get_service().add_product(url, target_price, notify_on_sale, sizes, name)
 
 
