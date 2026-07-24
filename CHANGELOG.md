@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- UNIQLO checks never guess anymore: a search with no confident match returns
+  `unsupported_live_fetch` instead of recording another product's price, and
+  malformed API responses (non-JSON, unexpected shape) take the same safe path.
+- Re-adding a tracked URL preserves the stored target price, sale opt-out, and
+  sizes; omitted fields keep their values instead of resetting to defaults.
+- Failed checks are recorded as "no observation": they no longer erase the
+  stored price baseline, fabricate fresh-looking history datapoints from stale
+  prices, or mask restock detection. A missing UNIQLO `stock` field counts as
+  no observation too (confirmed against a live API capture).
+- `below_target` and out-of-stock events are edge-triggered — they fire when
+  the state is entered, not on every check while it persists, so cron
+  summaries stay silent when nothing changed.
+- `price_history` honors the full `days` window instead of silently capping at
+  the 200 most recent rows.
+- OCR resolution: price hints prefer currency-anchored numbers over sizes and
+  measurements, and short product-name lines with CJK punctuation are kept.
+- CLI: new `check-all`, `history`, and `remove` subcommands; expected errors
+  print concise messages instead of tracebacks.
+- SQLite hygiene: foreign keys enforced, connections closed deterministically,
+  `updated_at` uses the wall clock, and event rows describe their own
+  transition instead of always storing prices.
+- Docs/CI: the skill's install-verification command now actually prints help,
+  `uv sync --extra dev` is the canonical dev setup matching CI's lockfile, and
+  CI measures coverage.
+
 ## 0.1.0 - 2026-07-23
 
 - Initial MCP server scaffold.
