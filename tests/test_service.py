@@ -16,6 +16,29 @@ def test_service_add_list_check_all(tmp_path):
     assert result["errors"] == []
 
 
+def test_re_add_preserves_existing_config(tmp_path):
+    # Re-adding a tracked URL (idempotent re-track) must not silently reset
+    # the user's alert configuration.
+    service = TrackerService(TrackerDB(tmp_path / "tracker.db"))
+    service.add_product(
+        "static://demo", target_price=390, notify_on_sale=False, sizes=["M"], name="Demo"
+    )
+    again = service.add_product("static://demo")
+    assert again["target_price"] == 390
+    assert again["notify_on_sale"] is False
+    assert again["sizes"] == ["M"]
+    assert again["name"] == "Demo"
+
+
+def test_re_add_overrides_only_provided_fields(tmp_path):
+    service = TrackerService(TrackerDB(tmp_path / "tracker.db"))
+    service.add_product("static://demo", target_price=390, notify_on_sale=False, sizes=["M"])
+    again = service.add_product("static://demo", target_price=350, sizes=["L"])
+    assert again["target_price"] == 350
+    assert again["sizes"] == ["L"]
+    assert again["notify_on_sale"] is False
+
+
 def test_remove_product(tmp_path):
     service = TrackerService(TrackerDB(tmp_path / "tracker.db"))
     product = service.add_product("static://demo")

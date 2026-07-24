@@ -48,7 +48,9 @@ class UniqloTwAdapter:
 
         try:
             candidate = self._fetch_product_by_code(code)
-        except httpx.HTTPError as exc:
+        # ValueError also covers json.JSONDecodeError from a 200 response
+        # whose body is not JSON (maintenance page, truncated body).
+        except (httpx.HTTPError, ValueError) as exc:
             return self._unsupported(product, f"UNIQLO Taiwan search request failed: {exc}")
 
         if candidate is None:
@@ -123,12 +125,14 @@ class UniqloTwAdapter:
         message: str,
         raw: dict[str, Any] | None = None,
     ) -> CheckResult:
+        # current_price stays None: this check learned nothing, and echoing the
+        # stored price would fabricate a fresh observation from stale data.
         return CheckResult(
             product_id=product.id or 0,
             name=product.name,
             url=product.url,
             adapter=self.name,
-            current_price=product.current_price,
+            current_price=None,
             currency=product.currency,
             events=[{"event_type": "unsupported_live_fetch", "message": message}],
             raw=raw or {"live_fetch": "unsupported", "message": message},
@@ -145,8 +149,10 @@ def _search_query_for_code(code: str) -> str:
     return code
 
 
-def _extract_products(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def _extract_products(payload: Any) -> list[dict[str, Any]]:
     products: list[dict[str, Any]] = []
+    if not isinstance(payload, dict):
+        return products
     for block in payload.get("resp") or []:
         if isinstance(block, dict):
             for item in block.get("productList") or []:
@@ -171,7 +177,9 @@ def _best_match(products: list[dict[str, Any]], code: str) -> dict[str, Any] | N
         ).lower()
         if normalized in haystack or search_code in haystack:
             return product
-    return products[0]
+    # No confident match. Guessing (e.g. returning the first fuzzy search hit)
+    # would record another product's price as this one's — never do that.
+    return None
 
 
 def _coerce_int(value: Any) -> int | None:
