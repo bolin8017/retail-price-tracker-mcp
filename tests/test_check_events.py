@@ -112,6 +112,33 @@ def test_check_skips_restock_when_still_in_stock(tmp_path, monkeypatch):
     assert "restock" not in _event_types(second)
 
 
+def test_no_price_check_keeps_stored_price_and_price_drop_detection(tmp_path, monkeypatch):
+    # A check that learned no price must not erase the stored baseline.
+    service = _service(
+        tmp_path, [_result(price=590), _result(price=None), _result(price=390)], monkeypatch
+    )
+    product = service.add_product("stub://demo")
+    service.check_product(product["id"])
+    service.check_product(product["id"])  # learned nothing
+    stored = service.db.get_product(product["id"])
+    assert stored is not None and stored.current_price == 590
+    third = service.check_product(product["id"])
+    assert "price_drop" in _event_types(third)
+
+
+def test_restock_survives_intervening_failed_check(tmp_path, monkeypatch):
+    service = _service(
+        tmp_path,
+        [_result(stock="N"), _result(price=None, stock=None), _result(stock="Y")],
+        monkeypatch,
+    )
+    product = service.add_product("stub://demo")
+    service.check_product(product["id"])
+    service.check_product(product["id"])  # failed observation, no stock info
+    third = service.check_product(product["id"])
+    assert "restock" in _event_types(third)
+
+
 def test_sale_event_suppressed_when_notify_on_sale_false(tmp_path, monkeypatch):
     sale = {"event_type": "sale_label", "label": "sale"}
     service = _service(tmp_path, [_result(sale_label="sale", events=[sale])], monkeypatch)

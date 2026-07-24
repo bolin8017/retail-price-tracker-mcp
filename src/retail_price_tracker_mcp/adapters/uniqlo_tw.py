@@ -125,12 +125,14 @@ class UniqloTwAdapter:
         message: str,
         raw: dict[str, Any] | None = None,
     ) -> CheckResult:
+        # current_price stays None: this check learned nothing, and echoing the
+        # stored price would fabricate a fresh observation from stale data.
         return CheckResult(
             product_id=product.id or 0,
             name=product.name,
             url=product.url,
             adapter=self.name,
-            current_price=product.current_price,
+            current_price=None,
             currency=product.currency,
             events=[{"event_type": "unsupported_live_fetch", "message": message}],
             raw=raw or {"live_fetch": "unsupported", "message": message},
@@ -175,7 +177,9 @@ def _best_match(products: list[dict[str, Any]], code: str) -> dict[str, Any] | N
         ).lower()
         if normalized in haystack or search_code in haystack:
             return product
-    return products[0]
+    # No confident match. Guessing (e.g. returning the first fuzzy search hit)
+    # would record another product's price as this one's — never do that.
+    return None
 
 
 def _coerce_int(value: Any) -> int | None:

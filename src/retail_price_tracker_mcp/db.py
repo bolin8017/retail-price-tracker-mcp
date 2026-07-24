@@ -114,6 +114,11 @@ class TrackerDB:
             row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
         return self._row_to_product(row) if row else None
 
+    def get_product_by_url(self, url: str) -> Product | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT * FROM products WHERE url = ?", (url,)).fetchone()
+        return self._row_to_product(row) if row else None
+
     def deactivate_product(self, product_id: int) -> bool:
         with self.connect() as conn:
             cur = conn.execute(
@@ -144,10 +149,14 @@ class TrackerDB:
                     json.dumps(result.raw, ensure_ascii=False),
                 ),
             )
-            conn.execute(
-                "UPDATE products SET current_price = ?, currency = ?, updated_at = ? WHERE id = ?",
-                (result.current_price, result.currency, result.checked_at, result.product_id),
-            )
+            # A check without a price learned nothing about the price; keep the
+            # stored baseline so future price_drop detection still has one.
+            if result.current_price is not None:
+                conn.execute(
+                    "UPDATE products SET current_price = ?, currency = ?, updated_at = ? "
+                    "WHERE id = ?",
+                    (result.current_price, result.currency, result.checked_at, result.product_id),
+                )
             for event in result.events:
                 conn.execute(
                     """
@@ -164,6 +173,21 @@ class TrackerDB:
                         json.dumps(event, ensure_ascii=False),
                     ),
                 )
+
+    def last_stock_status(self, product_id: int) -> str | None:
+        """Most recent stock observation, skipping checks that learned nothing."""
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT stock_status
+                FROM price_history
+                WHERE product_id = ? AND stock_status IS NOT NULL
+                ORDER BY checked_at DESC, id DESC
+                LIMIT 1
+                """,
+                (product_id,),
+            ).fetchone()
+        return str(row["stock_status"]) if row else None
 
     def history(self, product_id: int, limit: int = 200) -> list[dict[str, Any]]:
         with self.connect() as conn:

@@ -20,18 +20,28 @@ class TrackerService:
         self,
         url: str,
         target_price: int | None = None,
-        notify_on_sale: bool = True,
+        notify_on_sale: bool | None = None,
         sizes: list[str] | None = None,
         name: str | None = None,
     ) -> dict[str, Any]:
         adapter = choose_adapter(url)
+        # Re-adding a tracked URL is an idempotent re-track: fields the caller
+        # did not provide must keep their stored values, not reset to defaults.
+        existing = self.db.get_product_by_url(url)
+        if existing is not None:
+            name = name if name is not None else existing.name
+            target_price = target_price if target_price is not None else existing.target_price
+            notify_on_sale = (
+                notify_on_sale if notify_on_sale is not None else existing.notify_on_sale
+            )
+            sizes = sizes if sizes is not None else existing.sizes
         product = Product(
             id=None,
             url=url,
             adapter=adapter.name,
             name=name,
             target_price=target_price,
-            notify_on_sale=notify_on_sale,
+            notify_on_sale=True if notify_on_sale is None else notify_on_sale,
             sizes=sizes or [],
         )
         saved = self.db.add_product(product)
@@ -45,10 +55,10 @@ class TrackerService:
         if product is None:
             raise ValueError(f"Product not found: {product_id}")
         adapter = get_adapter(product.adapter)
-        # Read the last recorded check before this one is persisted, so we can
-        # detect transitions such as a restock.
-        previous = self.db.history(product_id, limit=1)
-        previous_stock = previous[0]["stock_status"] if previous else None
+        # Read the last recorded stock observation before this one is
+        # persisted, so we can detect transitions such as a restock. Checks
+        # that learned nothing (stock_status NULL) are skipped.
+        previous_stock = self.db.last_stock_status(product_id)
         result = adapter.check(product)
         events = list(result.events)
         if (
