@@ -171,7 +171,9 @@ def _best_match(products: list[dict[str, Any]], code: str) -> dict[str, Any] | N
         ).lower()
         if normalized in haystack or search_code in haystack:
             return product
-    return products[0]
+    # No confident match. Guessing (e.g. returning the first fuzzy search hit)
+    # would record another product's price as this one's — never do that.
+    return None
 
 
 def _coerce_int(value: Any) -> int | None:

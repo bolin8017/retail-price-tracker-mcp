@@ -99,6 +99,44 @@ def test_uniqlo_tw_does_not_fabricate_price_when_no_match(monkeypatch):
     assert result.events[0]["event_type"] == "unsupported_live_fetch"
 
 
+def test_uniqlo_tw_does_not_use_unrelated_first_result(monkeypatch):
+    # A description search can return non-empty fuzzy results that have nothing
+    # to do with the tracked code; check() must not present the first one as
+    # this product's price.
+    def fake_post(*args: Any, **kwargs: Any) -> FakeResponse:
+        return FakeResponse(
+            {
+                "success": True,
+                "resp": [
+                    {
+                        "productList": [
+                            {
+                                "productCode": "u0000000099999",
+                                "productName": "毫無關聯的外套",
+                                "shortName": "毫無關聯的外套",
+                                "minPrice": 1990,
+                                "originPrice": 1990,
+                                "stock": "Y",
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    adapter = UniqloTwAdapter()
+    product = Product(
+        id=1,
+        url="https://www.uniqlo.com/tw/zh_TW/products/E471234-000",
+        adapter=adapter.name,
+    )
+    result = adapter.check(product)
+    assert result.current_price is None
+    assert result.name is None
+    assert result.events[0]["event_type"] == "unsupported_live_fetch"
+
+
 def test_candidate_url_is_checkable_via_style_code():
     # resolve() must build a URL that check_product can re-fetch: it has to carry
     # the searchable 6-digit style code, not the internal `productCode` (u...),
