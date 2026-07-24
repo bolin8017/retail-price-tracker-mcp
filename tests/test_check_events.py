@@ -61,6 +61,8 @@ def test_is_in_stock_classification():
     assert is_in_stock("Y")
     assert is_in_stock("yes")
     assert is_in_stock("IN_STOCK")
+    assert is_in_stock("TRUE")
+    assert is_in_stock("1")
     assert not is_in_stock("N")
     assert not is_in_stock(None)
     assert not is_in_stock("")
@@ -80,6 +82,21 @@ def test_check_skips_price_drop_when_price_unchanged(tmp_path, monkeypatch):
     service.check_product(product["id"])
     second = service.check_product(product["id"])
     assert "price_drop" not in _event_types(second)
+
+
+def test_check_skips_price_drop_when_price_rises(tmp_path, monkeypatch):
+    service = _service(tmp_path, [_result(price=390), _result(price=590)], monkeypatch)
+    product = service.add_product("stub://demo")
+    service.check_product(product["id"])
+    second = service.check_product(product["id"])
+    assert "price_drop" not in _event_types(second)
+
+
+def test_check_skips_below_target_when_price_above_target(tmp_path, monkeypatch):
+    service = _service(tmp_path, [_result(price=400)], monkeypatch)
+    product = service.add_product("stub://demo", target_price=390)
+    first = service.check_product(product["id"])
+    assert "below_target" not in _event_types(first)
 
 
 def test_check_emits_below_target_at_or_under_target(tmp_path, monkeypatch):
