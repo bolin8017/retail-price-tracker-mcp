@@ -15,7 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
     add.add_argument("url")
     add.add_argument("--name")
     add.add_argument("--target-price", type=int)
-    add.add_argument("--size", action="append", default=[])
+    add.add_argument("--size", action="append", default=None)
     sub.add_parser("list")
     check = sub.add_parser("check")
     check.add_argument("product_id", type=int)
@@ -32,7 +32,7 @@ def main() -> None:
     args = build_parser().parse_args()
     service = TrackerService(TrackerDB(default_db_path()))
     if args.command == "add":
-        data = service.add_product(args.url, args.target_price, True, args.size, args.name)
+        data = service.add_product(args.url, args.target_price, None, args.size, args.name)
     elif args.command == "list":
         data = service.list_products()
     elif args.command == "check":
