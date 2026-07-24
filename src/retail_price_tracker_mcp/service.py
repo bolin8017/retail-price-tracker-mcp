@@ -20,18 +20,28 @@ class TrackerService:
         self,
         url: str,
         target_price: int | None = None,
-        notify_on_sale: bool = True,
+        notify_on_sale: bool | None = None,
         sizes: list[str] | None = None,
         name: str | None = None,
     ) -> dict[str, Any]:
         adapter = choose_adapter(url)
+        # Re-adding a tracked URL is an idempotent re-track: fields the caller
+        # did not provide must keep their stored values, not reset to defaults.
+        existing = self.db.get_product_by_url(url)
+        if existing is not None:
+            name = name if name is not None else existing.name
+            target_price = target_price if target_price is not None else existing.target_price
+            notify_on_sale = (
+                notify_on_sale if notify_on_sale is not None else existing.notify_on_sale
+            )
+            sizes = sizes if sizes is not None else existing.sizes
         product = Product(
             id=None,
             url=url,
             adapter=adapter.name,
             name=name,
             target_price=target_price,
-            notify_on_sale=notify_on_sale,
+            notify_on_sale=True if notify_on_sale is None else notify_on_sale,
             sizes=sizes or [],
         )
         saved = self.db.add_product(product)

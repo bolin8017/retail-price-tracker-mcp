@@ -114,6 +114,11 @@ class TrackerDB:
             row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
         return self._row_to_product(row) if row else None
 
+    def get_product_by_url(self, url: str) -> Product | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT * FROM products WHERE url = ?", (url,)).fetchone()
+        return self._row_to_product(row) if row else None
+
     def deactivate_product(self, product_id: int) -> bool:
         with self.connect() as conn:
             cur = conn.execute(
